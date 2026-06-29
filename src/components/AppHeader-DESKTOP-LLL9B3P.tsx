@@ -72,11 +72,7 @@ export function AppHeader() {
     
     localStorage.removeItem("token");
     
-<<<<<<< HEAD
     window.location.href = "https://login-podologiazavalos.vercel.app/?token=true";
-=======
-    window.location.href = "https://anh-billowier-atlas.ngrok-free.dev/?token=true";
->>>>>>> adf48fb94aa2d7ac964048a267746acfa49d9dcf
   };
 
   const enviarConsulta = () => {
