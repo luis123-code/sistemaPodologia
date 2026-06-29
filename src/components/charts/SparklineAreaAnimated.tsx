@@ -10,7 +10,7 @@ type Props = {
   values: number[];
   delayMs?: number;
   colorClassName?: string;
-  /** Color directo (hex, rgb, hsl) — tiene prioridad sobre colorClassName */
+  
   color?: string;
   className?: string;
 };
@@ -27,7 +27,7 @@ export function SparklineAreaAnimated({ values, delayMs = 0, colorClassName, col
     return () => clearTimeout(timer);
   }, [delayMs]);
 
-  // Extrae color actual del CSS para el stroke/fill
+  
   const [strokeColor, setStrokeColor] = useState<string>("hsl(217 91% 60%)");
   useEffect(() => {
     if (colorProp) {

@@ -12,7 +12,7 @@ export function useAnimatedNumber(value: number, duration: number = 1000): numbe
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Easing function (ease-out)
+      
       const easeOut = 1 - Math.pow(1 - progress, 3);
       const currentValue = Math.round(startValue + (value - startValue) * easeOut);
 

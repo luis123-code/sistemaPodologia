@@ -5,7 +5,7 @@ const soles = new Intl.NumberFormat("es-PE", {
   maximumFractionDigits: 2,
 });
 
-/** Importes en soles (PEN), formato Perú. */
+
 export function formatSoles(amount: number): string {
   return soles.format(amount);
 }

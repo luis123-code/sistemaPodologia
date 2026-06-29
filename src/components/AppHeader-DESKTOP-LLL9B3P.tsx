@@ -69,9 +69,9 @@ export function AppHeader() {
 
   const confirmarCerrarSesion = () => {
     setLogoutOpen(false);
-    // Eliminar token de localStorage
+    
     localStorage.removeItem("token");
-    // Redirigir a ngrok con token=true
+    
     window.location.href = "https://anh-billowier-atlas.ngrok-free.dev/?token=true";
   };
 

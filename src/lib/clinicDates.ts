@@ -1,4 +1,4 @@
-/** Fechas ISO (YYYY-MM-DD) para estadísticas locales, sin llamadas a red. */
+
 
 export function splitIsoDate(iso: string): [number, number, number] {
   const [y, m, d] = iso.split("-").map(Number);

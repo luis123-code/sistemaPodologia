@@ -1,10 +1,4 @@
-/**
- * Servicio de subida de imágenes a Cloudinary (unsigned upload)
- *
- * Requiere en .env:
- *   VITE_CLOUDINARY_CLOUD_NAME=tu-cloud-name
- *   VITE_CLOUDINARY_UPLOAD_PRESET=tu-upload-preset
- */
+
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
@@ -59,10 +53,7 @@ export async function uploadImageToCloudinary(
   return data.secure_url as string;
 }
 
-/**
- * Sube un array de imágenes base64 a Cloudinary y devuelve las nuevas URLs.
- * Las URLs que ya no son base64 se mantienen sin cambios.
- */
+
 export async function uploadImagesToCloudinary(
   urls: (string | undefined | null)[]
 ): Promise<string[]> {

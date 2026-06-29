@@ -2,12 +2,7 @@ import { fetchWithThrottle } from "./core/client";
 
 const TABLE_SERVICIOS = import.meta.env.VITE_TABLE_SERVICIOS;
 
-/**
- * Obtener todos los servicios
- * Endpoint: GET /api/v3/data/{projectId}/{TABLE_SERVICIOS}/records
- * @param tipoCatologo - Filtro opcional por tipo de catálogo (consulta, cirugiaMenor, Ortesis)
- * @param search - Filtro opcional de búsqueda por nombre de servicio
- */
+
 export async function obtenerServicios(tipoCatologo?: string, search?: string) {
   let url = `${import.meta.env.VITE_NOCODB_URL}/api/v3/data/${import.meta.env.VITE_NOCODB_PROJECT_ID}/${TABLE_SERVICIOS}/records`;
   
@@ -36,15 +31,12 @@ export async function obtenerServicios(tipoCatologo?: string, search?: string) {
   return response.json();
 }
 
-/**
- * Crear un nuevo servicio
- * Endpoint: POST /api/v3/data/{projectId}/{TABLE_SERVICIOS}/records
- */
+
 export async function crearServicio(data: {
   servicio: string;
   tipoCatologo: string;
   descripcion: string;
-  duracion: string; // HH:MM:SS
+  duracion: string; 
   precio: number;
 }) {
   const response = await fetchWithThrottle(
@@ -72,15 +64,12 @@ export async function crearServicio(data: {
   return response.json();
 }
 
-/**
- * Actualizar un servicio
- * Endpoint: PATCH /api/v3/data/{projectId}/{TABLE_SERVICIOS}/records
- */
+
 export async function actualizarServicio(id: string, data: {
   servicio: string;
   tipoCatologo: string;
   descripcion: string;
-  duracion: string; // HH:MM:SS
+  duracion: string; 
   precio: number;
 }) {
   const response = await fetchWithThrottle(
@@ -109,10 +98,7 @@ export async function actualizarServicio(id: string, data: {
   return response.json();
 }
 
-/**
- * Eliminar un servicio
- * Endpoint: DELETE /api/v3/data/{projectId}/{TABLE_SERVICIOS}/records/{id}
- */
+
 export async function eliminarServicio(id: string) {
   const response = await fetchWithThrottle(
     `${import.meta.env.VITE_NOCODB_URL}/api/v3/data/${import.meta.env.VITE_NOCODB_PROJECT_ID}/${TABLE_SERVICIOS}/records/${id}`,

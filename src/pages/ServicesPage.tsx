@@ -81,7 +81,7 @@ function useCountUp(end: number, duration: number = 1000) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
-      // Easing function: easeOutQuart
+      
       const easeOutQuart = 1 - Math.pow(1 - progress, 4);
       
       const currentCount = Math.floor(easeOutQuart * endRef.current);
@@ -130,7 +130,7 @@ export default function ServicesPage() {
     setFormPrice("");
   };
 
-  // Debounce para búsqueda
+  
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -138,7 +138,7 @@ export default function ServicesPage() {
     
     debounceRef.current = setTimeout(() => {
       setDebouncedQ(q);
-    }, 500); // 500ms de debounce
+    }, 500); 
     
     return () => {
       if (debounceRef.current) {
@@ -147,13 +147,13 @@ export default function ServicesPage() {
     };
   }, [q]);
 
-  // Cargar servicios desde la API
+  
   useEffect(() => {
     const loadServices = async () => {
       try {
         setLoading(true);
         
-        // Mapear tab a tipoCatologo
+        
         const tipoCatologoMap: Record<string, string> = {
           consulta: 'consulta',
           quirurgico: 'cirugiaMenor',
@@ -163,15 +163,15 @@ export default function ServicesPage() {
         const data = await obtenerServicios(tipoCatologoMap[tab], debouncedQ.trim() || undefined);
         const servicios = data.records || [];
         
-        // Mapear datos de la API al formato de PodiatryService
+        
         const mappedServices: PodiatryService[] = servicios
-          .filter((s: any) => s.fields.servicio) // Filtrar registros sin servicio
+          .filter((s: any) => s.fields.servicio) 
           .map((s: any) => {
-            // Convertir duración de HH:MM:SS a minutos
+            
             const duracionParts = s.fields.duracion ? s.fields.duracion.split(':') : ['0', '30', '00'];
             const durationMin = parseInt(duracionParts[0]) * 60 + parseInt(duracionParts[1]);
             
-            // Mapear tipoCatologo a category
+            
             const tipoCatologo = s.fields.tipoCatologo || 'consulta';
             let category: PodiatryService["category"] = 'consulta';
             if (tipoCatologo === 'cirugiaMenor' || tipoCatologo === 'quirurgico') {
@@ -192,7 +192,6 @@ export default function ServicesPage() {
         
         setServices(mappedServices);
       } catch (err) {
-        console.error("Error al cargar servicios:", err);
         setServices([]);
       } finally {
         setLoading(false);
@@ -254,12 +253,12 @@ export default function ServicesPage() {
       return;
     }
 
-    // Convertir duración de minutos a HH:MM:SS
+    
     const hours = Math.floor(durationMin / 60);
     const minutes = durationMin % 60;
     const duracion = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 
-    // Mapear category a tipoCatologo
+    
     const tipoCatologoMap: Record<PodiatryService["category"], string> = {
       consulta: 'consulta',
       quirurgico: 'cirugiaMenor',
@@ -304,7 +303,6 @@ export default function ServicesPage() {
       }
       setDialogOpen(false);
     } catch (err) {
-      console.error("Error al guardar servicio:", err);
       toast.error("Error al guardar el servicio");
     }
   };
@@ -315,12 +313,11 @@ export default function ServicesPage() {
       setServices((prev) => prev.filter((s) => s.id !== id));
       toast.success("Servicio eliminado del catálogo");
     } catch (err) {
-      console.error("Error al eliminar servicio:", err);
       toast.error("Error al eliminar el servicio");
     }
   };
 
-  // Mostrar indicador de carga inicial
+  
   if (loading && services.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">

@@ -34,7 +34,7 @@ export interface WebsiteTemplateSettings {
   contactPhone: string;
   heroTitle: string;
   heroSubtitle: string;
-  heroTitles: TituloSubtitulo[]; // Array dinámico de títulos/subtítulos
+  heroTitles: TituloSubtitulo[]; 
   fontPresetId: WebsiteFontPresetId;
   logoUrl: string;
   heroImageUrl: string;

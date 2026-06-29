@@ -54,13 +54,13 @@ import { clinicToday } from "@/data/mockData";
 import { addDaysIso } from "@/lib/clinicDates";
 import { formatSoles } from "@/lib/currency";
 
-// Servicios NocoDB
+
 import { obtenerPacientesRegistrados } from "@/services/nocodb/pacientes.service";
 import { obtenerCitasResumen } from "@/services/nocodb/citas.service";
 import { obtenerInventario } from "@/services/nocodb/inventario.service";
 import { obtenerFacturacionResumen } from "@/services/nocodb/facturacion.service";
 
-// Tipos
+
 interface PacienteAPI {
   id: string | number;
   fields?: {
@@ -171,7 +171,7 @@ function useCountUp(end: number, duration: number = 1000) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
-      // Easing function: easeOutQuart
+      
       const easeProgress = 1 - Math.pow(1 - progress, 4);
       
       countRef.current = Math.round(easeProgress * endRef.current);
@@ -245,7 +245,7 @@ export default function DashboardPage() {
   const [subtitleLen, setSubtitleLen] = useState(() => (hasWelcomeBeenSeen() ? WELCOME_SUBTITLE.length : 0));
   const [loading, setLoading] = useState(true);
 
-  // Estados para datos de APIs
+  
   const [patientsData, setPatientsData] = useState<PacienteAPI[]>([]);
   const [appointmentsData, setAppointmentsData] = useState<CitaAPI[]>([]);
   const [inventoryData, setInventoryData] = useState<InventarioItem[]>([]);
@@ -261,7 +261,7 @@ export default function DashboardPage() {
   });
   const [patronSemanal, setPatronSemanal] = useState<{ dia: string; visitas: number }[]>([]);
 
-  // Cargar datos de APIs
+  
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -286,7 +286,7 @@ export default function DashboardPage() {
         setPatientsData(pacientesRes.pacientes || []);
         setAppointmentsData(citasRes.citas || []);
         setPatronSemanal(citasRes.patronSemanal || []);
-        // obtenerInventario devuelve un objeto con records, extraer el array
+        
         const inventoryArray = Array.isArray(inventarioRes) 
           ? inventarioRes 
           : (inventarioRes?.records || []);
@@ -298,7 +298,6 @@ export default function DashboardPage() {
           cobrado: facturacionRes.cobrado || 0,
         });
       } catch (error) {
-        console.error("Error cargando datos del dashboard:", error);
       } finally {
         setLoading(false);
       }
@@ -361,8 +360,8 @@ export default function DashboardPage() {
     const since7 = addDaysIso(hoy, -7);
     const until7 = addDaysIso(hoy, 7);
 
-    // Normaliza la fecha de una cita — fields.fecha es la fecha ISO real (YYYY-MM-DD)
-    // fields.fechaCitas es texto descriptivo tipo "20/04/2026 - Cita ...", NO usar para filtrar
+    
+    
     const getCitaFecha = (a: any): string => {
       const raw = a.fields?.fecha || a.fields?.fechaCopy || a.date || "";
       if (!raw) return "";
@@ -372,7 +371,7 @@ export default function DashboardPage() {
     const getCitaProgreso = (a: any): string =>
       a.fields?.progreso || a.status || "";
 
-    // Usar datos reales de la API
+    
     const newPatientsWeek = patientsData.filter((p) => {
       const regDate = (p.fields?.fechaRegistro || p.registeredAt || "").split('T')[0];
       return regDate >= since7 && regDate <= hoy;
@@ -386,7 +385,7 @@ export default function DashboardPage() {
       return status === "Pendiente" && date >= hoy && date <= until7;
     }).length;
 
-    // Contar pendientes reales (estado Pendiente)
+    
     const pending = appointmentsData.filter((a) => getCitaProgreso(a) === "Pendiente").length;
 
     const statsRow = [
@@ -396,7 +395,7 @@ export default function DashboardPage() {
       { label: "Nuevos (7 días)", value: newPatientsWeek, icon: UserPlus, change: "Según fecha de registro", up: newPatientsWeek > 0, color: "text-info" },
     ];
 
-    // Preparar datos válidos para sparklines
+    
     const validPatientsForSparkline = patientsData.filter((p: any) => {
       const date = (p.fields?.fechaRegistro || p.registeredAt || "").split('T')[0];
       return date && date.length >= 8;
@@ -407,7 +406,7 @@ export default function DashboardPage() {
       return date && date.length >= 8;
     });
 
-    // Sparklines usando datos reales
+    
     const statSparklines = [
       cumulativePatientsByRegistration(validPatientsForSparkline as any),
       appointmentsPerDayWindow(validAppointmentsForSparkline as any, hoy, 12),
@@ -418,18 +417,18 @@ export default function DashboardPage() {
     return { stats: statsRow, statSparklines };
   }, [patientsData, appointmentsData, statsSummary]);
 
-  // Animated values for stats
+  
   const animatedPatientCount = useCountUp(stats[0]?.value || 0, 800);
   const animatedVisitsToday = useCountUp(stats[1]?.value || 0, 800);
   const animatedPendingVisits = useCountUp(stats[2]?.value || 0, 800);
   const animatedNewPatients = useCountUp(stats[3]?.value || 0, 800);
 
-  // Fecha real de Lima (usada también para filtros de listas)
+  
   const todayLima = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
 
-  // Normaliza fecha de cita — usa fields.fecha (ISO YYYY-MM-DD) como fuente principal
+  
   const getCitaFechaLocal = (a: CitaAPI): string => {
-    // fields.fecha es la fecha ISO real; fields.fechaCitas es texto descriptivo, NO fecha
+    
     const raw = (a as any).fields?.fecha || (a as any).fields?.fechaCopy || a.date || "";
     if (!raw) return "";
     return typeof raw === 'string' ? raw.split('T')[0] : "";
@@ -440,7 +439,7 @@ export default function DashboardPage() {
     (a as any).fields?.pacienteAsociado ||
     a.patientName || "Sin nombre";
 
-  // Datos derivados de las APIs
+  
   const recentPatients = patientsData.slice(-3).reverse();
 
   const todayAppointments = appointmentsData
@@ -466,7 +465,7 @@ export default function DashboardPage() {
     })
     .slice(0, 5);
 
-  // Patrón semanal real: últimos 7 días contando visitas por día
+  
   const patronSemanal7dias = useMemo(() => {
     const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
     const diasSemana = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -480,7 +479,6 @@ export default function DashboardPage() {
       }).length;
       return { dia: label, fecha: d, visitas };
     });
-    console.log("[Dashboard] patronSemanal7dias:", result);
     return result;
   }, [appointmentsData, todayLima]);
 

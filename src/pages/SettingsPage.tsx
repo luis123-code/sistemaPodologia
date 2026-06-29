@@ -17,7 +17,7 @@ export default function SettingsPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Mostrar indicador de carga inicial
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">

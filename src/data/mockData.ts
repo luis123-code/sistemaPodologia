@@ -23,12 +23,12 @@ export interface Appointment {
   date?: string;
   time?: string;
   status?: "pendiente" | "atendido" | "cancelado";
-  /** Dirección donde se realiza la visita (domicilio del paciente) */
+  
   visitAddress?: string;
-  /** Acceso, timbre, parking, etc. */
+  
   accessNotes?: string;
   notes?: string;
-  // NocoDB fields
+  
   fechaCitas?: string;
   horaCita?: string;
   fecha?: string;
@@ -63,7 +63,7 @@ export interface Notification {
   read: boolean;
 }
 
-/** Fecha de referencia para demos (ruta de visitas a domicilio) */
+
 export const clinicToday = new Date().toISOString().split('T')[0];
 
 export interface PodiatryService {
@@ -91,19 +91,19 @@ export interface WaitingTicket {
   appointmentTime: string;
   reason: string;
   visitAddress: string;
-  /** Teléfono de contacto para la visita (se muestra y enlaza a llamada) */
+  
   phone: string;
-  /** Número de WhatsApp si difiere del teléfono (solo dígitos, con prefijo país, ej. 34612345678) */
+  
   whatsapp?: string;
   status: "programado" | "en_ruta" | "en_domicilio" | "finalizado";
   priority: "normal" | "alta";
-  /** URL de Google Maps para la ubicación del paciente */
+  
   googleMapsUrl?: string;
 }
 
 export interface Invoice {
-  rowId?: number; // ID de la fila en NocoDB
-  patientId?: number; // ID del paciente en NocoDB
+  rowId?: number; 
+  patientId?: number; 
   id: string;
   patientName: string;
   date: string;

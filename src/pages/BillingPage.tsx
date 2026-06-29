@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { CreditCard, Receipt, Search, TrendingUp, Plus, Pencil, X, MoreVertical, Loader2, User } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { CreditCard, Receipt, Search, TrendingUp, Plus, Pencil, X, MoreVertical, Loader2 } from "lucide-react";
+import { PatientSearchDropdown } from "@/components/PatientSearchDropdown";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,8 +83,24 @@ export default function BillingPage() {
   const [formConcept, setFormConcept] = useState("");
   const [formAmount, setFormAmount] = useState("");
   const [formStatus, setFormStatus] = useState<Invoice["status"]>("Pendiente");
+  const location = useLocation();
 
-  // Debounce para búsqueda de facturas
+  useEffect(() => {
+    const state = (location.state as any) || {};
+    if (state.patientId) {
+      setSelectedPatientId(state.patientId);
+      setPatientSearch(state.patientName || "");
+      setFormPatient(state.patientName || "");
+      setFormDate(new Date().toISOString().split("T")[0]);
+      setFormConcept("");
+      setFormAmount("");
+      setFormStatus("Pendiente");
+      setEditingId(null);
+      setDialogOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const searchDebounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
@@ -99,16 +117,14 @@ export default function BillingPage() {
     };
   }, [search]);
 
-  // Estado para búsqueda de pacientes
+  
   const [patientSearch, setPatientSearch] = useState("");
   const [patientResults, setPatientResults] = useState<any[]>([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [patientLoading, setPatientLoading] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const patientDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const patientDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Cargar todos los pacientes activos al hacer focus en el input
   const loadAllPatients = async () => {
     if (patientResults.length > 0) return;
     setPatientLoading(true);
@@ -117,13 +133,12 @@ export default function BillingPage() {
       setPatientResults(data.pacientes || []);
       setShowPatientDropdown(true);
     } catch (err) {
-      console.error("Error al cargar pacientes:", err);
     } finally {
       setPatientLoading(false);
     }
   };
 
-  // Buscar pacientes con debounce
+  
   useEffect(() => {
     if (patientDebounceRef.current) {
       clearTimeout(patientDebounceRef.current);
@@ -138,14 +153,13 @@ export default function BillingPage() {
           setPatientResults(pacientes);
           setShowPatientDropdown(true);
         } catch (err) {
-          console.error("Error al buscar pacientes:", err);
           setPatientResults([]);
         } finally {
           setPatientLoading(false);
         }
       }, 500);
     } else if (patientSearch.trim().length === 0) {
-      // Cuando se borra el texto, recargar todos los pacientes si el dropdown está visible
+      
       setPatientResults([]);
       setShowPatientDropdown(false);
       setPatientLoading(false);
@@ -158,21 +172,8 @@ export default function BillingPage() {
     };
   }, [patientSearch]);
 
-  // Cerrar dropdown al hacer click fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        patientDropdownRef.current &&
-        !patientDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowPatientDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Cargar facturas desde la API
+  
+  
   useEffect(() => {
     const loadInvoices = async () => {
       setInvoicesLoading(true);
@@ -182,7 +183,7 @@ export default function BillingPage() {
           search: search.trim() || undefined 
         });
         const facturas = data.records || [];
-        // Mapear datos de la API al formato de Invoice
+        
         const mappedInvoices = facturas.map((f: any) => ({
           rowId: f.id, // ID de la fila en NocoDB
           id: f.fields.Factura || "",
@@ -195,7 +196,6 @@ export default function BillingPage() {
         }));
         setInvoicesList(mappedInvoices);
       } catch (err) {
-        console.error("Error al cargar facturas:", err);
         toast.error("Error al cargar facturas");
       } finally {
         setInvoicesLoading(false);
@@ -215,7 +215,7 @@ export default function BillingPage() {
   const total = invoicesList.reduce((a, i) => a + i.amountPen, 0);
   const pendiente = invoicesList.filter((i) => i.status === "Pendiente").reduce((a, i) => a + i.amountPen, 0);
 
-  // Animaciones de métricas
+  
   const animTotal = useAnimatedNumber(total, 1200);
   const animPendiente = useAnimatedNumber(pendiente, 1200);
   const animCount = useAnimatedNumber(invoicesList.length, 1200);
@@ -244,9 +244,9 @@ export default function BillingPage() {
   };
 
   const openEdit = (inv: Invoice) => {
-    setEditingId(String(inv.rowId || inv.id)); // Usar rowId si existe, sino id
-    setOldPatientId(inv.patientId || null); // Guardar ID del paciente anterior
-    setSelectedPatientId(inv.patientId ? String(inv.patientId) : null); // Establecer ID del paciente actual
+    setEditingId(String(inv.rowId || inv.id)); 
+    setOldPatientId(inv.patientId || null); 
+    setSelectedPatientId(inv.patientId ? String(inv.patientId) : null); 
     setFormId(inv.id);
     setFormPatient(inv.patientName);
     setPatientSearch(inv.patientName);
@@ -289,7 +289,7 @@ export default function BillingPage() {
       const estadoCapitalizado = formStatus.charAt(0).toUpperCase() + formStatus.slice(1).toLowerCase();
       
       if (editingId) {
-        // Actualizar factura existente
+        
         await actualizarFacturacion(editingId, {
           Factura: id,
           fecha: date,
@@ -300,7 +300,7 @@ export default function BillingPage() {
         }, oldPatientId || undefined);
         toast.success("Factura actualizada");
       } else {
-        // Crear nueva factura
+        
         await crearFacturacion({
           Factura: id,
           fecha: date,
@@ -312,7 +312,7 @@ export default function BillingPage() {
         toast.success("Factura registrada");
       }
       
-      // Recargar facturas
+      
       const data = await obtenerFacturacion();
       const facturas = data.records || [];
       const mappedInvoices = facturas.map((f: any) => ({
@@ -330,14 +330,13 @@ export default function BillingPage() {
       setDialogOpen(false);
       setEditingId(null);
     } catch (err) {
-      console.error("Error al guardar factura:", err);
       toast.error("Error al guardar factura");
     }
   };
 
   const handleDeleteInvoice = async (id: string) => {
     try {
-      // Buscar el ID numérico de la factura en la API
+      
       const data = await obtenerFacturacion();
       const factura = data.records.find((f: any) => f.fields.Factura === id);
       
@@ -345,7 +344,7 @@ export default function BillingPage() {
         await eliminarFacturacion((factura as any).id);
         toast.success("Factura eliminada");
         
-        // Recargar facturas
+        
         const newData = await obtenerFacturacion();
         const facturas = newData.records || [];
         const mappedInvoices = facturas.map((f: any) => ({
@@ -363,12 +362,11 @@ export default function BillingPage() {
         toast.error("Factura no encontrada");
       }
     } catch (err) {
-      console.error("Error al eliminar factura:", err);
       toast.error("Error al eliminar factura");
     }
   };
 
-  // Mostrar indicador de carga inicial
+  
   if (invoicesLoading && invoicesList.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -685,57 +683,28 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              <div className="space-y-2" ref={patientDropdownRef}>
+              <div className="space-y-2">
                 <Label className="text-[11px] text-gray-500 font-medium">Paciente</Label>
-                <div className="relative">
-                  <Input
-                    value={patientSearch}
-                    onChange={(e) => {
-                      setPatientSearch(e.target.value);
-                      setFormPatient(e.target.value);
-                    }}
-                    onFocus={() => {
-                      setShowPatientDropdown(true);
-                      loadAllPatients();
-                    }}
-                    placeholder="Buscar paciente..."
-                    className="text-sm pr-9"
-                    style={{
-                      backgroundColor: '#f5fffe',
-                      border: 'none',
-                      borderRadius: '8px',
-                      boxShadow: 'none'
-                    }}
-                  />
-                  {patientLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                  {showPatientDropdown && patientResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                      {patientResults.map((paciente) => (
-                        <div
-                          key={paciente.id}
-                          className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                          onClick={() => {
-                            const nombreCompleto = paciente.fields.nombreCompleto || `${paciente.fields.nombre} ${paciente.fields.apellido}`.trim();
-                            setFormPatient(nombreCompleto);
-                            setPatientSearch(nombreCompleto);
-                            setSelectedPatientId(paciente.id);
-                            setShowPatientDropdown(false);
-                          }}
-                        >
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e6f7f6]">
-                            <User className="h-3.5 w-3.5" style={{ color: '#22b4ad' }} />
-                          </div>
-                          <div>
-                            <div className="font-medium">{paciente.fields.nombreCompleto || `${paciente.fields.nombre} ${paciente.fields.apellido}`.trim()}</div>
-                            <div className="text-xs text-gray-500">{paciente.fields.telefono || ''}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <PatientSearchDropdown
+                  value={patientSearch}
+                  onChange={(value) => {
+                    setPatientSearch(value);
+                    setFormPatient(value);
+                  }}
+                  onSelect={(paciente) => {
+                    const nombreCompleto = paciente.fields.nombreCompleto || `${paciente.fields.nombre || ""} ${paciente.fields.apellido || ""}`.trim();
+                    setFormPatient(nombreCompleto);
+                    setPatientSearch(nombreCompleto);
+                    setSelectedPatientId(paciente.id);
+                    setShowPatientDropdown(false);
+                  }}
+                  results={patientResults}
+                  loading={patientLoading}
+                  showDropdown={showPatientDropdown}
+                  setShowDropdown={setShowPatientDropdown}
+                  placeholder="Buscar paciente..."
+                  loadOnFocus={loadAllPatients}
+                />
               </div>
 
               <div className="space-y-2">

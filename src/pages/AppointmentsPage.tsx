@@ -19,11 +19,12 @@ import { clinicToday, type Appointment } from "@/data/mockData";
 import { useCitas } from "@/services/nocodb/core/useCitas";
 import { eliminarAsociacionPaciente, crearAsociacionPaciente, actualizarCitaV3, crearCitaV3, contarCitasPorEstado, contarCitasTotal, filtrarCitasPorTipoPaciente } from "@/services/nocodb/citas.service";
 import { historialPorCita, crearRegistro, crearRegistroV3 } from "@/services/nocodb/historialMedico.service";
-import { buscarPacientePorNombre } from "@/services/nocodb/pacientes.service";
+import { buscarPacientePorNombre, obtenerPacientesRegistrados } from "@/services/nocodb/pacientes.service";
 import { toast } from "sonner";
 import { SparklineAreaAnimated } from "@/components/charts/SparklineAreaAnimated";
 import { cumulativeAppointmentsByDate, cumulativeCountChronologicalFiltered } from "@/lib/metricSparklineSeries";
 import { cn } from "@/lib/utils";
+import { PatientSearchDropdown } from "@/components/PatientSearchDropdown";
 
 const statusColor = (status: string) => {
   if (status === "atendido") return "bg-success/10 text-success hover:bg-success/20 border-0";
@@ -76,7 +77,7 @@ function useCountUp(end: number, duration: number = 1000) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
-      // Easing function: easeOutQuart
+      
       const easeProgress = 1 - Math.pow(1 - progress, 4);
       
       countRef.current = Math.round(easeProgress * endRef.current);
@@ -122,7 +123,7 @@ export default function AppointmentsPage() {
   });
   const [loadingCounts, setLoadingCounts] = useState(true);
 
-  // Animated values for status counts
+  
   const animatedCountAll = useCountUp(statusCounts.all, 800);
   const animatedCountConfirmada = useCountUp(statusCounts.Confirmada, 800);
   const animatedCountPendiente = useCountUp(statusCounts.Pendiente, 800);
@@ -158,59 +159,59 @@ export default function AppointmentsPage() {
   const [patientSearch, setPatientSearch] = useState("");
   const [patientSearchResults, setPatientSearchResults] = useState<any[]>([]);
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [originalPatientId, setOriginalPatientId] = useState<string | null>(null);
 
-  // Cargar counts de citas por estado
+  
   useEffect(() => {
     const loadStatusCounts = async () => {
       setLoadingCounts(true);
       try {
         const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // Cargar total y mostrar inmediatamente
+        
         const total = await contarCitasTotal();
         setStatusCounts(prev => ({ ...prev, all: total.count || 0 }));
         await delay(300);
 
-        // Cargar Confirmada y mostrar inmediatamente
+        
         const confirmada = await contarCitasPorEstado("Confirmada");
         setStatusCounts(prev => ({ ...prev, Confirmada: confirmada.count || 0 }));
         await delay(300);
 
-        // Cargar Pendiente y mostrar inmediatamente
+        
         const pendiente = await contarCitasPorEstado("Pendiente");
         setStatusCounts(prev => ({ ...prev, Pendiente: pendiente.count || 0 }));
         await delay(300);
 
-        // Cargar Cancelada y mostrar inmediatamente
+        
         const cancelada = await contarCitasPorEstado("Cancelada");
         setStatusCounts(prev => ({ ...prev, Cancelada: cancelada.count || 0 }));
         await delay(300);
 
-        // Cargar Descontinuado y mostrar inmediatamente
+        
         const descontinuado = await contarCitasPorEstado("Descontinuado");
         setStatusCounts(prev => ({ ...prev, Descontinuado: descontinuado.count || 0 }));
         await delay(300);
 
-        // Cargar Programado y mostrar inmediatamente
+        
         const programado = await contarCitasPorEstado("Programado");
         setStatusCounts(prev => ({ ...prev, Programado: programado.count || 0 }));
 
         setLoadingCounts(false);
       } catch (err) {
-        console.error("Error al cargar counts de estados:", err);
         setLoadingCounts(false);
       }
     };
     loadStatusCounts();
   }, []);
 
-  // Cargar citas filtradas por tipo de paciente
+  
   useEffect(() => {
     const loadCitasPorTipo = async () => {
       if (tipoPacienteFilter === "all") {
-        // Si es "all", restaurar las citas originales
+        
         setAppointments(originalAppointments);
         return;
       }
@@ -218,7 +219,7 @@ export default function AppointmentsPage() {
       setLoadingTipoPaciente(true);
       try {
         const data = await filtrarCitasPorTipoPaciente(tipoPacienteFilter);
-        // Convertir los registros de NocoDB al formato de Appointment
+        
         const citasFiltradas = data.records?.map((record: any) => ({
           id: record.id,
           patientName: record.fields?.pacientes?.fields?.nombreCompleto || record.fields?.pacienteId || "Sin paciente",
@@ -237,7 +238,6 @@ export default function AppointmentsPage() {
         })) || [];
         setAppointments(citasFiltradas);
       } catch (err) {
-        console.error("Error al cargar citas por tipo de paciente:", err);
       } finally {
         setLoadingTipoPaciente(false);
       }
@@ -246,7 +246,21 @@ export default function AppointmentsPage() {
     loadCitasPorTipo();
   }, [tipoPacienteFilter, originalAppointments]);
 
-  // Patient search with debounce
+  
+  const loadAllPatients = async () => {
+    if (patientSearchResults.length > 0) return;
+    setPatientSearchLoading(true);
+    try {
+      const data = await obtenerPacientesRegistrados();
+      setPatientSearchResults(data.pacientes || []);
+      setShowPatientDropdown(true);
+    } catch (error) {
+      setPatientSearchResults([]);
+    } finally {
+      setPatientSearchLoading(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (patientSearch.trim().length >= 2) {
@@ -255,7 +269,6 @@ export default function AppointmentsPage() {
           const data = await buscarPacientePorNombre(patientSearch);
           setPatientSearchResults(data.records || []);
         } catch (error) {
-          console.error('Error searching patients:', error);
           setPatientSearchResults([]);
         } finally {
           setPatientSearchLoading(false);
@@ -268,12 +281,12 @@ export default function AppointmentsPage() {
     return () => clearTimeout(timer);
   }, [patientSearch]);
 
-  // Convert NocoDB citas to Appointment format
+  
   useEffect(() => {
     if (citasNocoDB && citasNocoDB.length > 0) {
       const converted = citasNocoDB.map((cita: any) => {
         const f = cita.fields || cita;
-        // Extract fechaCitas without patient name: "20/04/2026 - Cita 01:30:00 - Pct NAME" -> "20/04/2026 - Cita 01:30:00"
+        
         const fechaCitasClean = f.fechaCitas ? f.fechaCitas.split(' - ').slice(0, 2).join(' - ') : f.fechaCitas;
         return {
           id: cita.id?.toString() || "",
@@ -285,7 +298,7 @@ export default function AppointmentsPage() {
           visitAddress: f.direccion || "",
           accessNotes: f.notas || "",
           notes: f.motivo || "",
-          // NocoDB fields
+          
           fechaCitas: fechaCitasClean,
           horaCita: f.horaCita,
           fecha: f.fecha,
@@ -310,13 +323,13 @@ export default function AppointmentsPage() {
   });
   const [activeTab, setActiveTab] = useState("list");
 
-  // Recargar citas cuando el usuario va al calendario
+  
   useEffect(() => {
     if (activeTab === "calendar") {
       recargar();
     }
   }, [activeTab]);
-  /** Texto libre: filtra lo que se pinta en el calendario (no afecta a las métricas superiores). */
+  
   const [calendarSearch, setCalendarSearch] = useState("");
   const calYear = calendarMonth.getFullYear();
   const calMonth = calendarMonth.getMonth();
@@ -328,7 +341,7 @@ export default function AppointmentsPage() {
     const attended = appointments.filter((a) => a.status === "atendido").length;
     const cancelled = appointments.filter((a) => a.status === "cancelado").length;
 
-    // Citas de hoy
+    
     const citasHoy = appointments.filter((a) => a.date === today || a.fechaCitas?.includes(today));
     return [
       {
@@ -366,7 +379,7 @@ export default function AppointmentsPage() {
     ];
   }, [appointments]);
 
-  // Animated values for metrics
+  
   const animatedTotalApps = useCountUp(metrics[0]?.value || 0, 800);
   const animatedPendingToday = useCountUp(metrics[1]?.value || 0, 800);
   const animatedAttended = useCountUp(metrics[2]?.value || 0, 800);
@@ -394,7 +407,7 @@ export default function AppointmentsPage() {
 
   const openEditVisit = (a: Appointment) => {
     setEditForm({ ...a });
-    // Save the original patient ID from the appointment
+    
     if (a.pacientes) {
       setOriginalPatientId(String(a.pacientes.id));
     } else {
@@ -406,14 +419,12 @@ export default function AppointmentsPage() {
   const openDetailsVisit = async (a: Appointment) => {
     setDetailsAppointment(a);
     setDetailsOpen(true);
-    // Cargar historial médico usando el ID de la cita
+    
     setLoadingHistorial(true);
     try {
       const historial = await historialPorCita(Number(a.id));
-      console.log('Respuesta API historial médico:', historial);
       setHistorialPaciente(historial.records || []);
     } catch (err) {
-      console.error('Error al cargar historial:', err);
       setHistorialPaciente([]);
     } finally {
       setLoadingHistorial(false);
@@ -444,11 +455,10 @@ export default function AppointmentsPage() {
         observacionMes: "",
         imagenPodologica: null,
       });
-      // Recargar historial
+      
       const historial = await historialPorCita(Number(detailsAppointment.id));
       setHistorialPaciente(historial.records || []);
     } catch (err) {
-      console.error("Error al agregar historial:", err);
       toast.error("Error al agregar historial médico");
     }
   };
@@ -456,10 +466,10 @@ export default function AppointmentsPage() {
   const saveEditVisit = async () => {
     if (!editForm) return;
     try {
-      // If user selected a new patient and there was an original patient, delete the old association first
+      
       if (selectedPatient && originalPatientId) {
         await eliminarAsociacionPaciente(editForm.id, originalPatientId);
-        // Create new association with the selected patient
+        
         await crearAsociacionPaciente(editForm.id, String(selectedPatient.id));
       }
 
@@ -473,7 +483,7 @@ export default function AppointmentsPage() {
         tipoProcedimientoCita: editForm.tipoProcedimientoCita || []
       };
 
-      // Only include pacientes field if user selected a new patient
+      
       if (selectedPatient) {
         fields.pacientes = [{ id: selectedPatient.id }];
       }
@@ -571,44 +581,21 @@ export default function AppointmentsPage() {
 
                 <div className="space-y-2 relative">
                   <Label className="text-[11px] text-gray-500 font-medium">Buscar paciente</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      type="text"
-                      placeholder="Escribe el nombre del paciente..."
-                      className="w-full text-sm pl-9"
-                      value={patientSearch}
-                      onChange={(e) => setPatientSearch(e.target.value)}
-                      style={{
-                        backgroundColor: '#f5fffe',
-                        border: 'none',
-                        borderRadius: '8px',
-                        boxShadow: 'none'
-                      }}
-                    />
-                    {patientSearchLoading && (
-                      <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
-                    )}
-                  </div>
-                  {patientSearchResults.length > 0 && (
-                    <div className="mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-300 shadow-lg" style={{ position: 'absolute', left: 0, right: 0, zIndex: 50, scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
-                      {patientSearchResults.map((patient) => (
-                        <button
-                          key={patient.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedPatient(patient);
-                            setPatientSearch(`${patient.fields.nombreCompleto} (ID: ${patient.id})`);
-                            setPatientSearchResults([]);
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-0"
-                        >
-                          <div className="font-medium text-gray-900">{patient.fields.nombreCompleto}</div>
-                          <div className="text-xs text-gray-500">ID: {patient.id} · {patient.fields.telefono || 'Sin teléfono'}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <PatientSearchDropdown
+                    value={patientSearch}
+                    onChange={setPatientSearch}
+                    results={patientSearchResults}
+                    loading={patientSearchLoading}
+                    showDropdown={showPatientDropdown}
+                    setShowDropdown={setShowPatientDropdown}
+                    placeholder="Escribe el nombre del paciente..."
+                    loadOnFocus={loadAllPatients}
+                    onSelect={(patient) => {
+                      setSelectedPatient(patient);
+                      setPatientSearch(`${patient.fields.nombreCompleto} (ID: ${patient.id})`);
+                      setPatientSearchResults([]);
+                    }}
+                  />
                 </div>
               </div>
 
@@ -1413,45 +1400,22 @@ export default function AppointmentsPage() {
 
                   <div className="space-y-2 relative">
                     <Label className="text-[11px] text-gray-500 font-medium">Buscar paciente</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        type="text"
-                        placeholder="Escribe el nombre del paciente..."
-                        className="w-full text-sm pl-9"
-                        value={patientSearch}
-                        onChange={(e) => setPatientSearch(e.target.value)}
-                        style={{
-                          backgroundColor: '#f5fffe',
-                          border: 'none',
-                          borderRadius: '8px',
-                          boxShadow: 'none'
-                        }}
-                      />
-                      {patientSearchLoading && (
-                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
-                      )}
-                    </div>
-                    {patientSearchResults.length > 0 && (
-                      <div className="mt-1 max-h-48 overflow-y-auto bg-white rounded-lg border border-gray-300 shadow-lg" style={{ position: 'absolute', left: 0, right: 0, zIndex: 50, scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
-                        {patientSearchResults.map((patient) => (
-                          <button
-                            key={patient.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPatient(patient);
-                              setPatientSearch(`${patient.fields.nombreCompleto} (ID: ${patient.id})`);
-                              setPatientSearchResults([]);
-                              setEditForm((f) => f ? { ...f, patientId: patient.id, patientName: patient.fields.nombreCompleto } : f);
-                            }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-0"
-                          >
-                            <div className="font-medium text-gray-900">{patient.fields.nombreCompleto}</div>
-                            <div className="text-xs text-gray-500">ID: {patient.id} · {patient.fields.telefono || 'Sin teléfono'}</div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <PatientSearchDropdown
+                      value={patientSearch}
+                      onChange={setPatientSearch}
+                      results={patientSearchResults}
+                      loading={patientSearchLoading}
+                      showDropdown={showPatientDropdown}
+                      setShowDropdown={setShowPatientDropdown}
+                      placeholder="Escribe el nombre del paciente..."
+                      loadOnFocus={loadAllPatients}
+                      onSelect={(patient) => {
+                        setSelectedPatient(patient);
+                        setPatientSearch(`${patient.fields.nombreCompleto} (ID: ${patient.id})`);
+                        setPatientSearchResults([]);
+                        setEditForm((f) => f ? { ...f, patientId: patient.id, patientName: patient.fields.nombreCompleto } : f);
+                      }}
+                    />
                   </div>
                 </div>
 

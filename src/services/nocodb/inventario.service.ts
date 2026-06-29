@@ -2,11 +2,7 @@ import { fetchWithThrottle } from "./core/client";
 
 const TABLE_INVENTARIO = import.meta.env.VITE_TABLE_INVENTARIO;
 
-/**
- * Obtener todos los items del inventario
- * Endpoint: GET /api/v3/data/{projectId}/{TABLE_INVENTARIO}/records
- * @param search - Filtro opcional de búsqueda por nombre, SKU o categoría
- */
+
 export async function obtenerInventario(search?: string) {
   let url = `${import.meta.env.VITE_NOCODB_URL}/api/v3/data/${import.meta.env.VITE_NOCODB_PROJECT_ID}/${TABLE_INVENTARIO}/records`;
   
@@ -25,10 +21,7 @@ export async function obtenerInventario(search?: string) {
   return response.json();
 }
 
-/**
- * Crear un nuevo item de inventario
- * Endpoint: POST /api/v3/data/{projectId}/{TABLE_INVENTARIO}/records
- */
+
 export async function crearInventario(data: {
   articulo: string;
   sku: string;
@@ -63,10 +56,7 @@ export async function crearInventario(data: {
   return response.json();
 }
 
-/**
- * Actualizar un item de inventario
- * Endpoint: PATCH /api/v3/data/{projectId}/{TABLE_INVENTARIO}/records
- */
+
 export async function actualizarInventario(id: string, data: {
   articulo: string;
   sku: string;
@@ -102,10 +92,7 @@ export async function actualizarInventario(id: string, data: {
   return response.json();
 }
 
-/**
- * Eliminar un item de inventario
- * Endpoint: DELETE /api/v3/data/{projectId}/{TABLE_INVENTARIO}/records/{id}
- */
+
 export async function eliminarInventario(id: string) {
   const response = await fetchWithThrottle(
     `${import.meta.env.VITE_NOCODB_URL}/api/v3/data/${import.meta.env.VITE_NOCODB_PROJECT_ID}/${TABLE_INVENTARIO}/records/${id}`,
