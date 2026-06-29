@@ -1,0 +1,328 @@
+/**
+ * Cliente base para NocoDB API v3
+ * Configuración base que todas las requests usan
+ *
+ * Documentación: https://nocodb.com/docs/rest-apis
+ */
+
+export const BASE_URL = import.meta.env.VITE_NOCODB_URL || "https://app.nocodb.com";
+const TOKEN = import.meta.env.VITE_NOCODB_TOKEN;
+export const PROJECT_ID = import.meta.env.VITE_NOCODB_PROJECT_ID || "p96bi1rx1mkbyoa";
+
+/**
+ * Configuración de rate limiting
+ */
+const MIN_REQUEST_INTERVAL_MS = 250; // Mínimo 250ms entre cada petición
+const MAX_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 1000;
+
+/**
+ * Cola de peticiones para respetar el rate limit de NocoDB
+ */
+class RequestQueue {
+  private queue: (() => Promise<void>)[] = [];
+  private running = false;
+  private lastRequestTime = 0;
+
+  async enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await fn();
+          resolve(result);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      this.process();
+    });
+  }
+
+  private async process() {
+    if (this.running || this.queue.length === 0) return;
+    this.running = true;
+
+    while (this.queue.length > 0) {
+      const now = Date.now();
+      const elapsed = now - this.lastRequestTime;
+      if (elapsed < MIN_REQUEST_INTERVAL_MS) {
+        await this.sleep(MIN_REQUEST_INTERVAL_MS - elapsed);
+      }
+
+      const task = this.queue.shift();
+      if (task) {
+        this.lastRequestTime = Date.now();
+        await task();
+      }
+    }
+
+    this.running = false;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+}
+
+const requestQueue = new RequestQueue();
+
+/**
+ * fetch con throttling automático y retry exponencial al recibir 429
+ */
+export async function fetchWithThrottle(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  return requestQueue.enqueue(async () => {
+    let attempt = 0;
+
+    while (true) {
+      const response = await fetch(input, init);
+
+      if (response.status === 429) {
+        if (attempt >= MAX_RETRIES) {
+          throw new Error("Demasiadas solicitudes. Espere un momento y reintente.");
+        }
+        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
+        console.warn(`[NocoDB Throttle] 429 recibido, reintentando en ${delay}ms (intento ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise((r) => setTimeout(r, delay));
+        attempt++;
+        continue;
+      }
+
+      return response;
+    }
+  });
+}
+
+/**
+ * Interfaz de información de paginación
+ */
+export interface PageInfo {
+  totalRows: number;
+  page: number;
+  pageSize: number;
+  isFirstPage: boolean;
+  isLastPage: boolean;
+}
+
+/**
+ * Interfaz de respuesta de NocoDB
+ */
+export interface NocoDBResponse<T> {
+  list: T[];
+  pageInfo: PageInfo;
+}
+
+/**
+ * Headers obligatorios en cada request
+ */
+export const getHeaders = (): HeadersInit => ({
+  "xc-token": TOKEN || "",
+  "Content-Type": "application/json",
+});
+
+/**
+ * URL base de datos
+ */
+export const getBaseUrl = (tableId: string): string =>
+  `${BASE_URL}/api/v3/data/${PROJECT_ID}/${tableId}/records`;
+
+/**
+ * Manejo de errores con mensajes en español
+ */
+export const handleError = (error: unknown): never => {
+  if (error instanceof Response) {
+    switch (error.status) {
+      case 401:
+        throw new Error("Token inválido o expirado");
+      case 403:
+        throw new Error("Sin permisos para realizar esta acción");
+      case 404:
+        throw new Error("Registro no encontrado");
+      case 422:
+        throw new Error("Datos inválidos");
+      case 429:
+        throw new Error("Demasiadas solicitudes. Espere 30 segundos y reintente");
+      case 500:
+        throw new Error("Error en el servidor");
+      default:
+        throw new Error(`Error desconocido: ${error.status}`);
+    }
+  }
+  if (error instanceof Error) {
+    throw error;
+  }
+  throw new Error("Error desconocido");
+};
+
+/**
+ * GET con query params opcionales
+ * Endpoint: GET /api/v3/data/{projectId}/{tableId}/records
+ * 
+ * @param tableId - ID de la tabla
+ * @param params - Parámetros de query opcionales
+ * @returns Promise con lista de registros y pageInfo
+ */
+export async function getRecords<T>(
+  tableId: string,
+  params?: {
+    where?: string;
+    limit?: number;
+    offset?: number;
+    sort?: string;
+    fields?: string;
+  }
+): Promise<NocoDBResponse<T>> {
+  const url = new URL(getBaseUrl(tableId));
+
+  if (params?.where) url.searchParams.append("where", params.where);
+  if (params?.limit) url.searchParams.append("limit", params.limit.toString());
+  if (params?.offset) url.searchParams.append("offset", params.offset.toString());
+  if (params?.sort) url.searchParams.append("sort", params.sort);
+  if (params?.fields) url.searchParams.append("fields", params.fields);
+
+  console.log("[NocoDB Client] URL:", url.toString());
+  
+  const response = await fetchWithThrottle(url.toString(), {
+    method: "GET",
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) handleError(response);
+
+  const data = await response.json();
+  console.log("[NocoDB Client] Respuesta cruda:", data);
+  
+  // NocoDB devuelve { records: [...], nestedNext: null }
+  // Necesitamos convertirlo a { list: [...], pageInfo: {...} }
+  const records = data.records || [];
+  const totalRows = records.length;
+  
+  return {
+    list: records,
+    pageInfo: {
+      totalRows,
+      page: 1,
+      pageSize: totalRows,
+      isFirstPage: true,
+      isLastPage: !data.nestedNext,
+    },
+  };
+}
+
+/**
+ * GET un solo registro por ID
+ * Endpoint: GET /api/v3/data/{projectId}/{tableId}/records/{id}
+ * 
+ * @param tableId - ID de la tabla
+ * @param id - ID del registro
+ * @returns Promise con el registro
+ */
+export async function getOne<T>(tableId: string, id: number): Promise<T> {
+  const url = `${getBaseUrl(tableId)}/${id}`;
+
+  const response = await fetchWithThrottle(url, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) handleError(response);
+
+  return response.json();
+}
+
+/**
+ * GET con where que devuelve el primero encontrado
+ * Endpoint: GET /api/v3/data/{projectId}/{tableId}/records?where=...&limit=1
+ * 
+ * @param tableId - ID de la tabla
+ * @param where - Condición where
+ * @returns Promise con el registro o null si no existe
+ */
+export async function findOne<T>(
+  tableId: string,
+  where: string
+): Promise<T | null> {
+  const result = await getRecords<T>(tableId, {
+    where,
+    limit: 1,
+    sort: "-Id",
+  });
+
+  return result.list.length > 0 ? result.list[0] : null;
+}
+
+/**
+ * POST crear registro
+ * Endpoint: POST /api/v3/data/{projectId}/{tableId}/records
+ * 
+ * @param tableId - ID de la tabla
+ * @param data - Datos del registro
+ * @returns Promise con el registro creado
+ */
+export async function createRecord<T>(
+  tableId: string,
+  data: Partial<T>
+): Promise<T> {
+  const url = getBaseUrl(tableId);
+
+  const response = await fetchWithThrottle(url, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) handleError(response);
+
+  return response.json();
+}
+
+/**
+ * PATCH actualizar registro
+ * Endpoint: PATCH /api/v3/data/{projectId}/{tableId}/records/{id}
+ * 
+ * @param tableId - ID de la tabla
+ * @param id - ID del registro
+ * @param data - Datos a actualizar
+ * @returns Promise con el registro actualizado
+ */
+export async function updateRecord<T>(
+  tableId: string,
+  id: number,
+  data: Partial<T>
+): Promise<T> {
+  const url = `${getBaseUrl(tableId)}/${id}`;
+
+  const response = await fetchWithThrottle(url, {
+    method: "PATCH",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) handleError(response);
+
+  return response.json();
+}
+
+/**
+ * DELETE eliminar registro
+ * Endpoint: DELETE /api/v3/data/{projectId}/{tableId}/records/{id}
+ * 
+ * @param tableId - ID de la tabla
+ * @param id - ID del registro
+ * @returns Promise vacío
+ */
+export async function deleteRecord(
+  tableId: string,
+  id: number
+): Promise<void> {
+  const url = `${getBaseUrl(tableId)}/${id}`;
+
+  const response = await fetchWithThrottle(url, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) handleError(response);
+}

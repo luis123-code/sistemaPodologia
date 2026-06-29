@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Marca #22b3ac → hsl(177 68% 42%) */
+    --background: 177 18% 97%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    --primary: 177 68% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 177 32% 92%;
+    --secondary-foreground: 177 55% 26%;
+
+    --muted: 177 14% 94%;
+    --muted-foreground: 215 12% 46%;
+
+    --accent: 177 35% 94%;
+    --accent-foreground: 177 60% 28%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 177 14% 88%;
+    --input: 177 14% 88%;
+    --ring: 177 68% 42%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 15% 40%;
+    --sidebar-primary: 177 68% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 177 28% 96%;
+    --sidebar-accent-foreground: 177 68% 36%;
+    --sidebar-border: 177 16% 90%;
+    --sidebar-ring: 177 68% 42%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 152 45% 42%;
+    --success-foreground: 0 0% 100%;
+    --info: 177 68% 42%;
+    --info-foreground: 0 0% 100%;
+
+    --chart-1: 217 91% 60%;
+    --chart-2: 213 94% 68%;
+    --chart-3: 217 91% 60%;
+    --chart-4: 212 95% 68%;
+    --chart-5: 210 100% 56%;
+  }
+
+  .dark {
+    --background: 220 22% 10%;
+    --foreground: 210 20% 95%;
+    --card: 220 20% 13%;
+    --card-foreground: 210 20% 95%;
+    --popover: 220 20% 13%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 177 62% 52%;
+    --primary-foreground: 220 25% 8%;
+    --secondary: 177 22% 22%;
+    --secondary-foreground: 177 45% 88%;
+    --muted: 220 15% 18%;
+    --muted-foreground: 215 12% 60%;
+    --accent: 177 18% 18%;
+    --accent-foreground: 177 50% 88%;
+    --destructive: 0 62% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 15% 20%;
+    --input: 220 15% 20%;
+    --ring: 177 62% 52%;
+    --sidebar-background: 220 20% 11%;
+    --sidebar-foreground: 210 15% 70%;
+    --sidebar-primary: 177 62% 52%;
+    --sidebar-primary-foreground: 220 25% 8%;
+    --sidebar-accent: 220 15% 16%;
+    --sidebar-accent-foreground: 177 55% 72%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 177 62% 52%;
+  }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply overflow-x-hidden;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased overflow-x-hidden min-w-0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@layer utilities {
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 hsl(177 35% 40% / 0.06), 0 1px 2px -1px hsl(177 35% 40% / 0.05);
+  }
+  .card-shadow-hover {
+    box-shadow: 0 4px 14px 0 hsl(177 40% 40% / 0.1), 0 2px 6px -2px hsl(177 35% 40% / 0.08);
+  }
+
+  /**
+   * Scrollbar discreta (Chrome/Edge/Safari + Firefox).
+   * Sin flechas del navegador; thumb fino en tono marca.
+   */
+  .scrollbar-brand {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary) / 0.32) hsl(var(--muted) / 0.45);
+  }
+  .scrollbar-brand::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-brand::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  .scrollbar-brand::-webkit-scrollbar-track {
+    margin: 4px 0;
+    background: hsl(var(--muted) / 0.4);
+    border-radius: 9999px;
+  }
+  .scrollbar-brand::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.35);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .scrollbar-brand::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.55);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .scrollbar-brand::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .dark .scrollbar-brand {
+    scrollbar-color: hsl(var(--primary) / 0.45) hsl(var(--muted) / 0.35);
+  }
+  .dark .scrollbar-brand::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.35);
+  }
+  .dark .scrollbar-brand::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.45);
+  }
+  .dark .scrollbar-brand::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.65);
+  }
+}
+
+/* Animación de rebote para marcadores de mapa */
+@keyframes markerBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-8px) scale(1.15); }
+  50% { transform: translateY(0) scale(1); }
+  70% { transform: translateY(-4px) scale(1.08); }
+}
+
+/* Animación de carrito conduciendo */
+@keyframes carDrive {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(2px) rotate(-3deg); }
+  50% { transform: translateX(0) rotate(0deg); }
+  75% { transform: translateX(-2px) rotate(3deg); }
+}
