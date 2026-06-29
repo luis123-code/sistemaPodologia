@@ -10,7 +10,7 @@ const token = urlToken || storedToken;
 
 if (!isValidJWT(token)) {
   localStorage.removeItem("token");
-  window.location.href = "https://login-podologiazavalos.vercel.app/?token=true";
+  window.location.href = "https://login-podologiazevallos.vercel.app/?token=true";
 } else {
   if (urlToken) {
     localStorage.setItem("token", urlToken);

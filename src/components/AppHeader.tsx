@@ -72,7 +72,7 @@ export function AppHeader() {
     
     localStorage.removeItem("token");
     
-    window.location.href = "https://login-podologiazavalos.vercel.app/?token=true";
+    window.location.href = "https://login-podologiazevallos.vercel.app/?token=true";
   };
 
   const enviarConsulta = () => {
