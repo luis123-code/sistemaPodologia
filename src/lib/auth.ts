@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 const LOGIN_URL = "https://login-podologiazavalos.vercel.app/?token=true";
+=======
+const LOGIN_URL = "https://login-podologiazevallos.vercel.app/";
+>>>>>>> adf48fb94aa2d7ac964048a267746acfa49d9dcf
 
 export const isValidJWT = (token: string | null): boolean => {
   if (!token) return false;
