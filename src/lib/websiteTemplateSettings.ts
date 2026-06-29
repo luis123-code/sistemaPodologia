@@ -34,10 +34,11 @@ export interface WebsiteTemplateSettings {
   contactPhone: string;
   heroTitle: string;
   heroSubtitle: string;
-  heroTitles: TituloSubtitulo[]; // Array dinámico de títulos/subtítulos
+  heroTitles: TituloSubtitulo[]; 
   fontPresetId: WebsiteFontPresetId;
   logoUrl: string;
   heroImageUrl: string;
+  professionalPhotoUrl: string;
   services: WebsiteServiceLine[];
   beforeAfter: WebsiteBeforeAfterPair[];
   galleryImages: string[];
@@ -69,6 +70,7 @@ export function defaultWebsiteTemplateSettings(): WebsiteTemplateSettings {
     fontPresetId: "system",
     logoUrl: "",
     heroImageUrl: "",
+    professionalPhotoUrl: "",
     services: servicesFromCatalog,
     beforeAfter: [
       {
@@ -100,6 +102,8 @@ export function loadWebsiteTemplateSettings(): WebsiteTemplateSettings {
         Array.isArray(parsed.beforeAfter) && parsed.beforeAfter.length ? parsed.beforeAfter : base.beforeAfter,
       galleryImages:
         Array.isArray(parsed.galleryImages) ? parsed.galleryImages : base.galleryImages,
+      professionalPhotoUrl:
+        typeof parsed.professionalPhotoUrl === "string" ? parsed.professionalPhotoUrl : base.professionalPhotoUrl,
     };
   } catch {
     return defaultWebsiteTemplateSettings();

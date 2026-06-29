@@ -1,7 +1,4 @@
-/**
- * Hook React para Pacientes
- * Maneja el estado y operaciones de pacientes
- */
+
 
 import { useState, useCallback, useEffect } from "react";
 import {
@@ -52,20 +49,15 @@ export function usePacientes(initialParams?: UsePacientesParams): UsePacientesRe
     try {
       const finalParams = { ...currentParams, ...params };
       setCurrentParams(finalParams);
-      console.log("[NocoDB] Cargando pacientes con params:", finalParams);
       const result = await listarPacientes(finalParams);
-      console.log("[NocoDB] Respuesta recibida:", result);
-      console.log("[NocoDB] Lista de pacientes:", result?.list);
-      console.log("[NocoDB] Total rows:", result?.pageInfo?.totalRows);
       setPacientes(result?.list || []);
       setTotal(result?.pageInfo?.totalRows || 0);
       setPagina(finalParams.page || 1);
       
-      // Obtener total count
+      
       const countResult = await contarPacientes();
       setTotalCount(countResult?.count || 0);
     } catch (err) {
-      console.error("[NocoDB] Error al cargar pacientes:", err);
       setError(err instanceof Error ? err.message : "Error al cargar pacientes");
       setPacientes([]);
       setTotal(0);
@@ -136,11 +128,10 @@ export function usePacientes(initialParams?: UsePacientesParams): UsePacientesRe
     await cargar();
   }, [cargar]);
 
-  // Cargar inicialmente
+  
   useEffect(() => {
-    console.log("[NocoDB] useEffect - Cargando pacientes iniciales");
     cargar(initialParams);
-  }, []); // Solo al montar el componente
+  }, []); 
 
   return {
     pacientes,

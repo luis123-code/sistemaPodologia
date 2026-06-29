@@ -11,7 +11,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider
       style={
         {
-          /* Modo icono: ancho mínimo para logo (36px) + padding sin desbordar */
+          
           "--sidebar-width-icon": "3.5rem",
         } as React.CSSProperties
       }

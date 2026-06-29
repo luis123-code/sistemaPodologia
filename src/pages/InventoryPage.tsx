@@ -78,7 +78,7 @@ function useCountUp(end: number, duration: number = 1000) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
-      // Easing function: easeOutQuart
+      
       const easeOutQuart = 1 - Math.pow(1 - progress, 4);
       
       const currentCount = Math.floor(easeOutQuart * endRef.current);
@@ -118,7 +118,7 @@ export default function InventoryPage() {
   const [formMinUnits, setFormMinUnits] = useState("");
   const [formUnit, setFormUnit] = useState("uds.");
 
-  // Debounce para búsqueda
+  
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -126,7 +126,7 @@ export default function InventoryPage() {
     
     debounceRef.current = setTimeout(() => {
       setDebouncedSearch(search);
-    }, 500); // 500ms de debounce
+    }, 500); 
     
     return () => {
       if (debounceRef.current) {
@@ -135,7 +135,7 @@ export default function InventoryPage() {
     };
   }, [search]);
 
-  // Cargar inventario desde la API
+  
   useEffect(() => {
     const loadInventory = async () => {
       try {
@@ -143,9 +143,9 @@ export default function InventoryPage() {
         const data = await obtenerInventario(debouncedSearch.trim() || undefined);
         const inventario = data.records || [];
         
-        // Mapear datos de la API al formato de InventoryItem
+        
         const mappedItems: InventoryItem[] = inventario
-          .filter((i: any) => i.fields.articulo) // Filtrar registros sin articulo
+          .filter((i: any) => i.fields.articulo) 
           .map((i: any) => ({
             id: String(i.id),
             name: i.fields.articulo || '',
@@ -158,7 +158,6 @@ export default function InventoryPage() {
         
         setItems(mappedItems);
       } catch (err) {
-        console.error("Error al cargar inventario:", err);
         setItems([]);
       } finally {
         setLoading(false);
@@ -259,7 +258,7 @@ export default function InventoryPage() {
       }
       setDialogOpen(false);
       setEditingId(null);
-      // Recargar inventario
+      
       const data = await obtenerInventario(debouncedSearch.trim() || undefined);
       const inventario = data.records || [];
       const mappedItems: InventoryItem[] = inventario
@@ -275,7 +274,6 @@ export default function InventoryPage() {
         }));
       setItems(mappedItems);
     } catch (err) {
-      console.error("Error al guardar:", err);
       toast.error("Error al guardar el artículo");
     }
   };
@@ -284,7 +282,7 @@ export default function InventoryPage() {
     try {
       await eliminarInventario(id);
       toast.success("Artículo eliminado del inventario");
-      // Recargar inventario
+      
       const data = await obtenerInventario(debouncedSearch.trim() || undefined);
       const inventario = data.records || [];
       const mappedItems: InventoryItem[] = inventario
@@ -300,7 +298,6 @@ export default function InventoryPage() {
         }));
       setItems(mappedItems);
     } catch (err) {
-      console.error("Error al eliminar:", err);
       toast.error("Error al eliminar el artículo");
     }
   };

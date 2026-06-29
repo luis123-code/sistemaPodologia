@@ -59,7 +59,7 @@ export function WebsiteTemplateEditor() {
   const [saving, setSaving] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // Cargar automáticamente la última plantilla de NocoDB al montar
+  
   useEffect(() => {
     let cancelled = false;
 
@@ -69,7 +69,7 @@ export function WebsiteTemplateEditor() {
         if (cancelled) return;
 
         if (plantillas.length > 0) {
-          // Tomar el ÚLTIMO (diferente del botón "Restaurar" que toma el ante penúltimo)
+          
           const ultimaPlantilla = plantillas[plantillas.length - 1];
 
           let infoWeb = ultimaPlantilla.fields?.informacionDelaWeb;
@@ -126,7 +126,7 @@ export function WebsiteTemplateEditor() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 1. Subir imágenes base64 a Cloudinary primero
+      
       const uploadIfNeeded = (url: string) =>
         url && url.startsWith("data:") ? uploadImageToCloudinary(url) : Promise.resolve(url);
 
@@ -150,7 +150,7 @@ export function WebsiteTemplateEditor() {
         settings.galleryPanel.map((img) => uploadIfNeeded(img))
       );
 
-      // 2. Preparar datos limpios para NocoDB
+      
       const plantillaData = {
         titulosSubtitulos: (settings.heroTitles || []).map((ht) => ({
           titulo: ht.titulo,
@@ -171,7 +171,7 @@ export function WebsiteTemplateEditor() {
         })),
       };
 
-      // 3. Actualizar estado local con las URLs de Cloudinary (para no perderlas)
+      
       setSettings((prev) => ({
         ...prev,
         beforeAfter: uploadedBeforeAfter,
@@ -179,12 +179,6 @@ export function WebsiteTemplateEditor() {
         galleryPodologiaProfesional: uploadedGalleryProfesional,
         galleryPanel: uploadedGalleryPanel,
       }));
-
-      console.log("=== DATOS DE PLANTILLA WEB ===");
-      console.log(JSON.stringify(plantillaData, null, 2));
-      console.log("==============================");
-      console.log("Total de servicios:", settings.services.length);
-      console.log("Total de casos antes/después:", settings.beforeAfter.length);
 
       const resultado = await crearPlantilla(plantillaData as any);
 
@@ -194,7 +188,6 @@ export function WebsiteTemplateEditor() {
         toast.error("Error al guardar en NocoDB");
       }
     } catch (error) {
-      console.error("Error guardando plantilla:", error);
       toast.error(error instanceof Error ? error.message : "Error al guardar en NocoDB");
     } finally {
       setSaving(false);
@@ -216,18 +209,14 @@ export function WebsiteTemplateEditor() {
         return;
       }
       
-      // Obtener el ante penúltimo (o el último si solo hay 1)
+      
       const index = plantillas.length >= 2 ? plantillas.length - 2 : 0;
       const ultimaPlantilla = plantillas[index];
       
-      console.log("=== PLANTILLA CARGADA DESDE NOCODB ===");
-      console.log(JSON.stringify(ultimaPlantilla, null, 2));
-      console.log("======================================");
       
-      // Parsear el JSON de informacionDelaWeb
       let infoWeb = ultimaPlantilla.fields?.informacionDelaWeb;
       
-      // Si es string, parsearlo
+      
       if (typeof infoWeb === 'string') {
         infoWeb = JSON.parse(infoWeb);
       }
@@ -237,7 +226,7 @@ export function WebsiteTemplateEditor() {
         return;
       }
       
-      // Rellenar los campos con los datos de NocoDB
+      
       const newSettings = {
         ...settings,
         contactPhone: infoWeb.telefonoPrincipal || settings.contactPhone,
@@ -266,7 +255,6 @@ export function WebsiteTemplateEditor() {
       toast.success(`Plantilla "${ultimaPlantilla.fields?.Title || 'Sin título'}" cargada desde NocoDB`);
       
     } catch (error) {
-      console.error("Error al cargar plantilla:", error);
       toast.error("Error al cargar la plantilla desde NocoDB");
     }
   };

@@ -101,7 +101,7 @@ export default function BillingPage() {
     }
   }, [location.state]);
 
-  // Debounce para búsqueda de facturas
+  
   const searchDebounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export default function BillingPage() {
     };
   }, [search]);
 
-  // Estado para búsqueda de pacientes
+  
   const [patientSearch, setPatientSearch] = useState("");
   const [patientResults, setPatientResults] = useState<any[]>([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
@@ -126,7 +126,7 @@ export default function BillingPage() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const patientDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cargar todos los pacientes activos al hacer focus en el input
+  
   const loadAllPatients = async () => {
     if (patientResults.length > 0) return;
     setPatientLoading(true);
@@ -135,13 +135,12 @@ export default function BillingPage() {
       setPatientResults(data.pacientes || []);
       setShowPatientDropdown(true);
     } catch (err) {
-      console.error("Error al cargar pacientes:", err);
     } finally {
       setPatientLoading(false);
     }
   };
 
-  // Buscar pacientes con debounce
+  
   useEffect(() => {
     if (patientDebounceRef.current) {
       clearTimeout(patientDebounceRef.current);
@@ -156,14 +155,13 @@ export default function BillingPage() {
           setPatientResults(pacientes);
           setShowPatientDropdown(true);
         } catch (err) {
-          console.error("Error al buscar pacientes:", err);
           setPatientResults([]);
         } finally {
           setPatientLoading(false);
         }
       }, 500);
     } else if (patientSearch.trim().length === 0) {
-      // Cuando se borra el texto, recargar todos los pacientes si el dropdown está visible
+      
       setPatientResults([]);
       setShowPatientDropdown(false);
       setPatientLoading(false);
@@ -176,7 +174,7 @@ export default function BillingPage() {
     };
   }, [patientSearch]);
 
-  // Cargar facturas desde la API
+  
   useEffect(() => {
     const loadInvoices = async () => {
       setInvoicesLoading(true);
@@ -186,7 +184,7 @@ export default function BillingPage() {
           search: search.trim() || undefined 
         });
         const facturas = data.records || [];
-        // Mapear datos de la API al formato de Invoice
+        
         const mappedInvoices = facturas.map((f: any) => ({
           rowId: f.id, // ID de la fila en NocoDB
           id: f.fields.Factura || "",
@@ -199,7 +197,6 @@ export default function BillingPage() {
         }));
         setInvoicesList(mappedInvoices);
       } catch (err) {
-        console.error("Error al cargar facturas:", err);
         toast.error("Error al cargar facturas");
       } finally {
         setInvoicesLoading(false);
@@ -219,7 +216,7 @@ export default function BillingPage() {
   const total = invoicesList.reduce((a, i) => a + i.amountPen, 0);
   const pendiente = invoicesList.filter((i) => i.status === "Pendiente").reduce((a, i) => a + i.amountPen, 0);
 
-  // Animaciones de métricas
+  
   const animTotal = useAnimatedNumber(total, 1200);
   const animPendiente = useAnimatedNumber(pendiente, 1200);
   const animCount = useAnimatedNumber(invoicesList.length, 1200);
@@ -248,9 +245,9 @@ export default function BillingPage() {
   };
 
   const openEdit = (inv: Invoice) => {
-    setEditingId(String(inv.rowId || inv.id)); // Usar rowId si existe, sino id
-    setOldPatientId(inv.patientId || null); // Guardar ID del paciente anterior
-    setSelectedPatientId(inv.patientId ? String(inv.patientId) : null); // Establecer ID del paciente actual
+    setEditingId(String(inv.rowId || inv.id)); 
+    setOldPatientId(inv.patientId || null); 
+    setSelectedPatientId(inv.patientId ? String(inv.patientId) : null); 
     setFormId(inv.id);
     setFormPatient(inv.patientName);
     setPatientSearch(inv.patientName);
@@ -293,7 +290,7 @@ export default function BillingPage() {
       const estadoCapitalizado = formStatus.charAt(0).toUpperCase() + formStatus.slice(1).toLowerCase();
       
       if (editingId) {
-        // Actualizar factura existente
+        
         await actualizarFacturacion(editingId, {
           Factura: id,
           fecha: date,
@@ -304,7 +301,7 @@ export default function BillingPage() {
         }, oldPatientId || undefined);
         toast.success("Factura actualizada");
       } else {
-        // Crear nueva factura
+        
         await crearFacturacion({
           Factura: id,
           fecha: date,
@@ -316,7 +313,7 @@ export default function BillingPage() {
         toast.success("Factura registrada");
       }
       
-      // Recargar facturas
+      
       const data = await obtenerFacturacion();
       const facturas = data.records || [];
       const mappedInvoices = facturas.map((f: any) => ({
@@ -334,14 +331,13 @@ export default function BillingPage() {
       setDialogOpen(false);
       setEditingId(null);
     } catch (err) {
-      console.error("Error al guardar factura:", err);
       toast.error("Error al guardar factura");
     }
   };
 
   const handleDeleteInvoice = async (id: string) => {
     try {
-      // Buscar el ID numérico de la factura en la API
+      
       const data = await obtenerFacturacion();
       const factura = data.records.find((f: any) => f.fields.Factura === id);
       
@@ -349,7 +345,7 @@ export default function BillingPage() {
         await eliminarFacturacion((factura as any).id);
         toast.success("Factura eliminada");
         
-        // Recargar facturas
+        
         const newData = await obtenerFacturacion();
         const facturas = newData.records || [];
         const mappedInvoices = facturas.map((f: any) => ({
@@ -367,12 +363,11 @@ export default function BillingPage() {
         toast.error("Factura no encontrada");
       }
     } catch (err) {
-      console.error("Error al eliminar factura:", err);
       toast.error("Error al eliminar factura");
     }
   };
 
-  // Mostrar indicador de carga inicial
+  
   if (invoicesLoading && invoicesList.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">

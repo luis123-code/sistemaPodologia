@@ -59,7 +59,7 @@ const DialogContent = React.forwardRef<
           className={cn(
             "dialog-scroll-area scrollbar-brand min-h-0 flex-1 overflow-y-auto overscroll-y-contain pt-14 [-webkit-overflow-scrolling:touch] sm:pt-12",
             "pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]",
-            /* Formularios en móvil: etiqueta arriba, control a ancho completo */
+            
             "[&_label]:block [&_input]:w-full [&_textarea]:w-full [&_button[role=combobox]]:w-full",
           )}
         >

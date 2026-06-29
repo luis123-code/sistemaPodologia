@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Search, Plus, Edit, Trash2, Filter, Users, UserCheck, UserX, UserPlus, MapPin, MessageCircle, Calendar, Eye, ScrollText, X, MoreVertical, Home, Check, UserPlus2, Loader2, Copy, ImageIcon, Star } from "lucide-react";
+import { Search, Plus, Edit, Pencil, Trash2, Filter, Users, UserCheck, UserX, UserPlus, MapPin, MessageCircle, Calendar, Eye, ScrollText, X, MoreVertical, Home, Check, UserPlus2, Loader2, Copy, ImageIcon, Star, Receipt } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { PatientSearchDropdown } from "@/components/PatientSearchDropdown";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { crearCita, citasPorPacienteAsociado } from "@/services/nocodb/citas.service";
 import { historialPorCita } from "@/services/nocodb/historialMedico.service";
-import { buscarPacientePorCampo, actualizarPacienteV3 } from "@/services/nocodb/pacientes.service";
+import { buscarPacientePorCampo, actualizarPacienteV3, obtenerPacientesRegistrados } from "@/services/nocodb/pacientes.service";
 import { type Patient, appointments, medicalRecords, clinicToday } from "@/data/mockData";
 import { addMonthsMonthStart, monthStartIso } from "@/lib/clinicDates";
 import { toast } from "sonner";
@@ -48,7 +50,7 @@ function useCountUp(end: number, duration: number = 1000) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
-      // Easing function: easeOutQuart
+      
       const easeProgress = 1 - Math.pow(1 - progress, 4);
       
       countRef.current = Math.round(easeProgress * endRef.current);
@@ -72,10 +74,12 @@ function useCountUp(end: number, duration: number = 1000) {
 }
 
 export default function PatientsPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [searchField, setSearchField] = useState<string>("nombreCompleto");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const { pacientes: pacientesNocoDB, loading, error, crear, actualizar, eliminar, recargar, totalCount } = usePacientes();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -133,21 +137,15 @@ export default function PatientsPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  // Convertir Paciente de NocoDB a formato Patient del componente
+  
   const patientsData = useMemo(() => {
-    console.log("[PatientsPage] pacientesNocoDB recibido:", pacientesNocoDB);
-    console.log("[PatientsPage] Es array:", Array.isArray(pacientesNocoDB));
     if (!pacientesNocoDB || !Array.isArray(pacientesNocoDB)) {
-      console.log("[PatientsPage] Retornando array vacío");
       return [];
     }
     const converted = pacientesNocoDB.map((p) => {
-      // Extraer datos de fields si existe (estructura real de API), sino usar directo
+      
       const f = (p.fields || p) as any;
       const originalId = p.id || p.Id;
-      console.log("[PatientsPage] Procesando paciente:", p);
-      console.log("[PatientsPage] Original ID:", originalId, "Type:", typeof originalId);
-      console.log("[PatientsPage] CreatedAt de API:", f.CreatedAt, "Type:", typeof f.CreatedAt);
       const convertedPatient = {
         id: (originalId || "").toString(),
         nocodbId: originalId || null,
@@ -166,17 +164,15 @@ export default function PatientsPage() {
         mensaje: f.Mensaje?.url || "",
         citas: f.citas || [],
       };
-      console.log("[PatientsPage] Paciente convertido - id:", convertedPatient.id, "nocodbId:", convertedPatient.nocodbId);
       return convertedPatient;
     }) as Patient[];
-    console.log("[PatientsPage] Pacientes convertidos:", converted.length, converted);
     return converted;
   }, [pacientesNocoDB]);
 
   const monthStart = monthStartIso(clinicToday);
   const nextMonthStart = addMonthsMonthStart(monthStart, 1);
 
-  // Debounce search effect
+  
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (search.trim() === "") {
@@ -190,24 +186,32 @@ export default function PatientsPage() {
         const operator = searchField === 'Edad' ? 'eq' : 'like';
         const data = await buscarPacientePorCampo(searchField, operator, search);
 
-        console.log("[Search] API Response structure:", JSON.stringify(data, null, 2));
-        console.log("[Search] data.records:", data.records);
-        console.log("[Search] data.records length:", data.records?.length);
-
         if (data.records && data.records.length > 0) {
-          console.log("[Search] First item structure:", JSON.stringify(data.records[0], null, 2));
         }
         setSearchResults(data.records || []);
       } catch (err) {
-        console.error("[Search] Error:", err);
         setSearchResults([]);
       } finally {
         setSearchLoading(false);
       }
-    }, 500); // 500ms delay
+    }, 500); 
 
     return () => clearTimeout(delayDebounceFn);
   }, [search, searchField]);
+
+  const loadAllPatientsForDropdown = async () => {
+    if (searchResults.length > 0) return;
+    setSearchLoading(true);
+    try {
+      const data = await obtenerPacientesRegistrados();
+      setSearchResults(data.pacientes || []);
+      setShowSearchDropdown(true);
+    } catch (err) {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   const metrics = useMemo(() => {
     const totalPatients = patientsData.length;
@@ -220,9 +224,6 @@ export default function PatientsPage() {
       registeredDate.setHours(0, 0, 0, 0);
       return registeredDate.getTime() === today.getTime();
     });
-    console.log("[Metrics] today:", today.toISOString());
-    console.log("[Metrics] Pacientes creados hoy:", newToday.length);
-    console.log("[Metrics] Pacientes creados hoy:", newToday.map(p => ({ name: p.name, registeredAt: p.registeredAt })));
     return [
       {
         label: "Total Pacientes",
@@ -251,7 +252,7 @@ export default function PatientsPage() {
     ];
   }, [patientsData, monthStart, nextMonthStart]);
 
-  // Animated values for metrics
+  
   const animatedTotalPatients = useCountUp(metrics[0]?.value || 0, 800);
   const animatedRegistrados = useCountUp(metrics[1]?.value || 0, 800);
   const animatedNewToday = useCountUp(metrics[2]?.value || 0, 800);
@@ -262,17 +263,13 @@ export default function PatientsPage() {
     return matchSearch && matchStatus;
   });
 
-  // Convert searchResults to Patient format
+  
   const searchResultsConverted = useMemo(() => {
     if (!searchResults || searchResults.length === 0) {
-      console.log("[Search] No search results to convert");
       return [];
     }
-    console.log("[Search] Converting search results:", searchResults);
     const converted = searchResults.map((p, index) => {
-      console.log(`[Search] Converting item ${index}:`, p);
       const f = (p.fields || p) as any;
-      console.log(`[Search] Item ${index} fields:`, f);
       const originalId = p.id || p.Id;
       const patient = {
         id: (originalId || "").toString(),
@@ -292,20 +289,16 @@ export default function PatientsPage() {
         mensaje: f.Mensaje?.url || "",
         citas: f.citas || [],
       };
-      console.log(`[Search] Item ${index} converted:`, patient);
       return patient;
     }) as Patient[];
-    console.log("[Search] Converted results:", converted);
     return converted;
   }, [searchResults]);
 
-  // Use searchResults when searching, otherwise use filtered patientsData
+  
   const displayData = search.trim() !== "" ? searchResultsConverted : filtered;
-  console.log("[Table] search:", search, "searchResultsConverted.length:", searchResultsConverted.length, "displayData.length:", displayData.length);
 
   const totalPages = Math.ceil(displayData.length / perPage);
   const paginated = displayData.slice((currentPage - 1) * perPage, currentPage * perPage);
-  console.log("[Table] paginated.length:", paginated.length, "currentPage:", currentPage);
 
   const handleDelete = async (id: string) => {
     try {
@@ -323,30 +316,21 @@ export default function PatientsPage() {
   };
 
   const openDetailsPatient = async (p: Patient) => {
-    console.log('[Details] Patient object received:', p);
-    console.log('[Details] Patient ID:', p.id, 'nocodbId:', (p as any).nocodbId);
     setDetailPatient({ ...p });
-    console.log('[Details] detailPatient set');
     setDetailsOpen(true);
     setLoadingCitas(true);
     setCitasPaciente([]);
     setHistorialPaciente([]);
 
-    // Fetch patient details from citas API with pacienteAsociado filter
+    
     try {
-      console.log('[Details] Fetching citas for patient ID:', p.id, 'Type:', typeof p.id);
       const patientId = (p as any).nocodbId || p.id;
       const data = await citasPorPacienteAsociado(patientId);
-      console.log('[Details] Citas fetched:', data);
-      console.log('[Details] Number of records:', data.records?.length);
       setCitasPaciente(data.records || []);
-      console.log('[Details] citasPaciente set to:', data.records?.length, 'records');
     } catch (err) {
-      console.error('[Details] Error fetching citas:', err);
     } finally {
       setLoadingCitas(false);
     }
-    console.log('[Details] After fetch, detailPatient:', detailPatient);
   };
 
   const handleVerHistorial = async (cita: any) => {
@@ -355,12 +339,9 @@ export default function PatientsPage() {
 
     try {
       const citaId = cita.id || cita.Id;
-      console.error("CITA ENCONTRADA :", citaId);
       const data = await historialPorCita(citaId);
-      console.log('[Historial] Records fetched:', data);
       setHistorialPaciente(data.records || []);
     } catch (err) {
-      console.error('[Historial] Error fetching records:', err);
     } finally {
       setLoadingHistorial(false);
     }
@@ -383,7 +364,6 @@ export default function PatientsPage() {
 
   const openAgendarCita = (patient?: Patient) => {
     const p = patient || detailPatient;
-    console.log('[AgendarCita] Opening modal for patient ID:', p?.id, 'nocodbId:', (p as any)?.nocodbId);
     setCitaPatient(p || null);
     setNuevaCita({
       horaCita: "",
@@ -400,8 +380,6 @@ export default function PatientsPage() {
   };
 
   const handleSaveCita = async () => {
-    console.log('[AgendarCita] detailPatient at start:', detailPatient);
-    console.log('[AgendarCita] detailPatient is null:', detailPatient === null);
     if (!nuevaCita.horaCita) {
       toast.error("La hora de la cita es obligatoria");
       return;
@@ -418,8 +396,6 @@ export default function PatientsPage() {
     setSavingCita(true);
     try {
       const patientNocoId = (citaPatient as any)?.nocodbId;
-      console.log('[AgendarCita] citaPatient:', citaPatient);
-      console.log('[AgendarCita] nocodbId:', patientNocoId, 'Type:', typeof patientNocoId);
       const citaData = {
         fields: {
           horaCita: nuevaCita.horaCita,
@@ -439,7 +415,7 @@ export default function PatientsPage() {
       setAgendarCitaOpen(false);
       setDetailsOpen(false);
       setShowCitas(false);
-      // Recargar tabla de pacientes
+      
       recargar();
     } catch (err) {
       toast.error("Error al agendar cita: " + (err instanceof Error ? err.message : "Error desconocido"));
@@ -485,7 +461,7 @@ export default function PatientsPage() {
       await crear(pacienteData as any);
       toast.success("Paciente registrado correctamente");
       setAddOpen(false);
-      recargar(); // Reload the list
+      recargar(); 
     } catch (err) {
       toast.error("Error al registrar paciente: " + (err instanceof Error ? err.message : "Error desconocido"));
     } finally {
@@ -531,7 +507,7 @@ export default function PatientsPage() {
   const patientAppointments = selectedPatient ? appointments.filter((a) => a.patientId === selectedPatient.id) : [];
   const patientRecords = selectedPatient ? medicalRecords.filter((r) => r.patientId === selectedPatient.id) : [];
 
-  // Mostrar error si existe
+  
   if (error && pacientesNocoDB.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -811,15 +787,14 @@ export default function PatientsPage() {
                             const file = e.target.files?.[0];
                             if (file) {
                               setUploadingFotoAdd(true);
-                              // Crear preview de la imagen
+                              
                               const reader = new FileReader();
                               reader.onloadend = () => {
                                 setFotoPreviewAdd(reader.result as string);
                               };
                               reader.readAsDataURL(file);
-                              // Simular carga de foto (reemplazar con lógica real de upload)
+                              
                               setTimeout(() => {
-                                console.log('Archivo subido:', file.name);
                                 setUploadingFotoAdd(false);
                                 toast.success("Foto subida correctamente");
                               }, 1500);
@@ -908,11 +883,27 @@ export default function PatientsPage() {
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#22b4ad]" />}
-              </div>
-              <Input placeholder={`Buscar por ${searchField === 'nombreCompleto' ? 'nombre' : searchField}...`} className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} />
+              {searchField === "nombreCompleto" ? (
+                <PatientSearchDropdown
+                  value={search}
+                  onChange={(value) => { setSearch(value); setCurrentPage(1); }}
+                  onSelect={() => { setShowSearchDropdown(false); setCurrentPage(1); }}
+                  results={searchResults}
+                  loading={searchLoading}
+                  showDropdown={showSearchDropdown}
+                  setShowDropdown={setShowSearchDropdown}
+                  placeholder="Buscar por nombre..."
+                  loadOnFocus={loadAllPatientsForDropdown}
+                />
+              ) : (
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    {searchLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#22b4ad]" />}
+                  </div>
+                  <Input placeholder={`Buscar por ${searchField}...`} className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} />
+                </div>
+              )}
             </div>
             <Select value={searchField} onValueChange={setSearchField}>
               <SelectTrigger className="w-40"><Filter className="mr-2 h-4 w-4" /><SelectValue placeholder="Campo" /></SelectTrigger>
@@ -1111,18 +1102,36 @@ export default function PatientsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openDetailsPatient(p)}>
+                        <DropdownMenuItem onClick={() => openDetailsPatient(p)} className="gap-2">
+                          <Eye className="h-4 w-4 text-[#0f7e78]" />
                           Ver detalles
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEditPatient(p)}>
+                        <DropdownMenuItem onClick={() => openEditPatient(p)} className="gap-2">
+                          <Pencil className="h-4 w-4 text-[#0f7e78]" />
                           Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            navigate("/facturacion", {
+                              state: {
+                                patientId: p.id || (p as any).nocodbId,
+                                patientName: p.name,
+                                patientPhone: p.phone || "",
+                              },
+                            });
+                          }}
+                          className="gap-2"
+                        >
+                          <Receipt className="h-4 w-4 text-[#0f7e78]" />
+                          Crear factura
                         </DropdownMenuItem>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <DropdownMenuItem
                               onSelect={(e) => e.preventDefault()}
-                              className="text-destructive focus:text-destructive"
+                              className="text-destructive focus:text-destructive gap-2"
                             >
+                              <Trash2 className="h-4 w-4" />
                               Eliminar
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
@@ -1428,15 +1437,14 @@ export default function PatientsPage() {
                               const file = e.target.files?.[0];
                               if (file) {
                                 setUploadingFotoEdit(true);
-                                // Crear preview de la imagen
+                                
                                 const reader = new FileReader();
                                 reader.onloadend = () => {
                                   setFotoPreviewEdit(reader.result as string);
                                 };
                                 reader.readAsDataURL(file);
-                                // Simular carga de foto (reemplazar con lógica real de upload)
+                                
                                 setTimeout(() => {
-                                  console.log('Archivo subido:', file.name);
                                   setUploadingFotoEdit(false);
                                   toast.success("Foto subida correctamente");
                                 }, 1500);

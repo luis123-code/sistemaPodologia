@@ -1,15 +1,9 @@
-/**
- * Agente especializado en NocoDB API v3
- * Exporta todos los servicios, hooks y utilidades
- * 
- * @example
- * import { pacientesService, citasService, usePacientes } from '@/services/nocodb'
- */
 
-// Where Builder
+
+
 export { wb } from "./whereBuilder";
 
-// Client
+
 export {
   getRecords,
   getOne,
@@ -20,10 +14,10 @@ export {
 } from "./client";
 export type { PageInfo, NocoDBResponse } from "./client";
 
-// Types
+
 export type { Paciente, HistorialMedico, Cita } from "./types";
 
-// Services
+
 import {
   listarPacientes,
   obtenerPaciente,
@@ -140,6 +134,6 @@ export const citasService = {
   eliminar: eliminarCita,
 };
 
-// Hooks
+
 export { usePacientes } from "./usePacientes";
 export { useCitas, useCitasDeHoy } from "./useCitas";

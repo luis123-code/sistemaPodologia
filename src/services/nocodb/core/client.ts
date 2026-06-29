@@ -1,24 +1,15 @@
-/**
- * Cliente base para NocoDB API v3
- * Configuración base que todas las requests usan
- *
- * Documentación: https://nocodb.com/docs/rest-apis
- */
+
 
 export const BASE_URL = import.meta.env.VITE_NOCODB_URL || "https://app.nocodb.com";
 const TOKEN = import.meta.env.VITE_NOCODB_TOKEN;
 export const PROJECT_ID = import.meta.env.VITE_NOCODB_PROJECT_ID || "p96bi1rx1mkbyoa";
+import { requireAuthToken } from "@/lib/auth";
 
-/**
- * Configuración de rate limiting
- */
-const MIN_REQUEST_INTERVAL_MS = 250; // Mínimo 250ms entre cada petición
+const MIN_REQUEST_INTERVAL_MS = 250; 
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 1000;
 
-/**
- * Cola de peticiones para respetar el rate limit de NocoDB
- */
+
 class RequestQueue {
   private queue: (() => Promise<void>)[] = [];
   private running = false;
@@ -66,13 +57,12 @@ class RequestQueue {
 
 const requestQueue = new RequestQueue();
 
-/**
- * fetch con throttling automático y retry exponencial al recibir 429
- */
+
 export async function fetchWithThrottle(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
+  requireAuthToken();
   return requestQueue.enqueue(async () => {
     let attempt = 0;
 
@@ -84,7 +74,6 @@ export async function fetchWithThrottle(
           throw new Error("Demasiadas solicitudes. Espere un momento y reintente.");
         }
         const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
-        console.warn(`[NocoDB Throttle] 429 recibido, reintentando en ${delay}ms (intento ${attempt + 1}/${MAX_RETRIES})`);
         await new Promise((r) => setTimeout(r, delay));
         attempt++;
         continue;
@@ -95,9 +84,7 @@ export async function fetchWithThrottle(
   });
 }
 
-/**
- * Interfaz de información de paginación
- */
+
 export interface PageInfo {
   totalRows: number;
   page: number;
@@ -106,31 +93,23 @@ export interface PageInfo {
   isLastPage: boolean;
 }
 
-/**
- * Interfaz de respuesta de NocoDB
- */
+
 export interface NocoDBResponse<T> {
   list: T[];
   pageInfo: PageInfo;
 }
 
-/**
- * Headers obligatorios en cada request
- */
+
 export const getHeaders = (): HeadersInit => ({
   "xc-token": TOKEN || "",
   "Content-Type": "application/json",
 });
 
-/**
- * URL base de datos
- */
+
 export const getBaseUrl = (tableId: string): string =>
   `${BASE_URL}/api/v3/data/${PROJECT_ID}/${tableId}/records`;
 
-/**
- * Manejo de errores con mensajes en español
- */
+
 export const handleError = (error: unknown): never => {
   if (error instanceof Response) {
     switch (error.status) {
@@ -156,14 +135,7 @@ export const handleError = (error: unknown): never => {
   throw new Error("Error desconocido");
 };
 
-/**
- * GET con query params opcionales
- * Endpoint: GET /api/v3/data/{projectId}/{tableId}/records
- * 
- * @param tableId - ID de la tabla
- * @param params - Parámetros de query opcionales
- * @returns Promise con lista de registros y pageInfo
- */
+
 export async function getRecords<T>(
   tableId: string,
   params?: {
@@ -181,8 +153,6 @@ export async function getRecords<T>(
   if (params?.offset) url.searchParams.append("offset", params.offset.toString());
   if (params?.sort) url.searchParams.append("sort", params.sort);
   if (params?.fields) url.searchParams.append("fields", params.fields);
-
-  console.log("[NocoDB Client] URL:", url.toString());
   
   const response = await fetchWithThrottle(url.toString(), {
     method: "GET",
@@ -192,10 +162,9 @@ export async function getRecords<T>(
   if (!response.ok) handleError(response);
 
   const data = await response.json();
-  console.log("[NocoDB Client] Respuesta cruda:", data);
   
-  // NocoDB devuelve { records: [...], nestedNext: null }
-  // Necesitamos convertirlo a { list: [...], pageInfo: {...} }
+  
+  
   const records = data.records || [];
   const totalRows = records.length;
   
@@ -211,14 +180,7 @@ export async function getRecords<T>(
   };
 }
 
-/**
- * GET un solo registro por ID
- * Endpoint: GET /api/v3/data/{projectId}/{tableId}/records/{id}
- * 
- * @param tableId - ID de la tabla
- * @param id - ID del registro
- * @returns Promise con el registro
- */
+
 export async function getOne<T>(tableId: string, id: number): Promise<T> {
   const url = `${getBaseUrl(tableId)}/${id}`;
 
@@ -232,14 +194,7 @@ export async function getOne<T>(tableId: string, id: number): Promise<T> {
   return response.json();
 }
 
-/**
- * GET con where que devuelve el primero encontrado
- * Endpoint: GET /api/v3/data/{projectId}/{tableId}/records?where=...&limit=1
- * 
- * @param tableId - ID de la tabla
- * @param where - Condición where
- * @returns Promise con el registro o null si no existe
- */
+
 export async function findOne<T>(
   tableId: string,
   where: string
@@ -253,14 +208,7 @@ export async function findOne<T>(
   return result.list.length > 0 ? result.list[0] : null;
 }
 
-/**
- * POST crear registro
- * Endpoint: POST /api/v3/data/{projectId}/{tableId}/records
- * 
- * @param tableId - ID de la tabla
- * @param data - Datos del registro
- * @returns Promise con el registro creado
- */
+
 export async function createRecord<T>(
   tableId: string,
   data: Partial<T>
@@ -278,15 +226,7 @@ export async function createRecord<T>(
   return response.json();
 }
 
-/**
- * PATCH actualizar registro
- * Endpoint: PATCH /api/v3/data/{projectId}/{tableId}/records/{id}
- * 
- * @param tableId - ID de la tabla
- * @param id - ID del registro
- * @param data - Datos a actualizar
- * @returns Promise con el registro actualizado
- */
+
 export async function updateRecord<T>(
   tableId: string,
   id: number,
@@ -305,14 +245,7 @@ export async function updateRecord<T>(
   return response.json();
 }
 
-/**
- * DELETE eliminar registro
- * Endpoint: DELETE /api/v3/data/{projectId}/{tableId}/records/{id}
- * 
- * @param tableId - ID de la tabla
- * @param id - ID del registro
- * @returns Promise vacío
- */
+
 export async function deleteRecord(
   tableId: string,
   id: number

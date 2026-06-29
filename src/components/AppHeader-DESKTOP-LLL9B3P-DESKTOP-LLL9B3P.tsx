@@ -72,7 +72,7 @@ export function AppHeader() {
     
     localStorage.removeItem("token");
     
-    window.location.href = "https://login-podologiazavalos.vercel.app/?token=true";
+    window.location.href = "https://anh-billowier-atlas.ngrok-free.dev/?token=true";
   };
 
   const enviarConsulta = () => {
@@ -276,7 +276,7 @@ export function AppHeader() {
             <AlertDialogHeader>
               <AlertDialogTitle>¿Cerrar sesión?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta es una demo: no hay servidor de autenticación. Podrás seguir usando la app.
+                ¿Estás seguro de que deseas cerrar sesión? Deberás volver a iniciar sesión para acceder.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

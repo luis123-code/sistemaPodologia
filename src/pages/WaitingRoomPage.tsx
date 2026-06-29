@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { contarCitasPorRutaDia, obtenerCitasPorRutaDia, obtenerCitasDomicilioHoy, actualizarRutaDia } from "@/services/nocodb/citas.service";
 import { obtenerPaciente } from "@/services/nocodb/pacientes.service";
+import { requireAuthToken } from "@/lib/auth";
 
 const statusLabel: Record<WaitingTicket["status"], string> = {
   programado: "Programada",
@@ -29,6 +30,7 @@ const statusLabel: Record<WaitingTicket["status"], string> = {
 const statusOrder: WaitingTicket["status"][] = ["programado", "en_ruta", "en_domicilio", "finalizado"];
 
 async function geocodificarDireccion(direccion: string): Promise<{ lat: number; lng: number } | null> {
+  requireAuthToken();
   try {
     const q = encodeURIComponent(`${direccion}, Lima, Peru`);
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
@@ -51,7 +53,7 @@ function MapMarkersPaciente({
   const pacienteMarkerRef = useRef<Marker | null>(null);
   const userMarkerRef = useRef<Marker | null>(null);
 
-  // Marcador del PACIENTE
+  
   useEffect(() => {
     if (!map || !isLoaded || !pacienteLoc) return;
 
@@ -71,7 +73,7 @@ function MapMarkersPaciente({
     };
   }, [map, isLoaded, pacienteLoc]);
 
-  // Marcador del USUARIO (tú)
+  
   useEffect(() => {
     if (!map || !isLoaded || !userLoc) return;
 
@@ -85,11 +87,11 @@ function MapMarkersPaciente({
         .addTo(map);
     } else {
       userMarkerRef.current.setLngLat([userLoc.lng, userLoc.lat]);
-      // Animación de rebote al moverse
+      
       const el = userMarkerRef.current.getElement();
       if (el) {
         el.style.animation = "none";
-        el.offsetHeight; // trigger reflow
+        el.offsetHeight; 
         el.style.animation = "markerBounce 0.6s ease";
       }
     }
@@ -138,6 +140,7 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
   }
 
   async function fetchOsrmRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
+    requireAuthToken();
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&alternatives=true`;
       const res = await fetch(url);
@@ -152,11 +155,10 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
         setSelectedRoute(0);
       }
     } catch (e) {
-      console.warn("OSRM route error:", e);
     }
   }
 
-  // Geocodificar dirección del paciente solo cuando el dialog está abierto
+  
   useEffect(() => {
     if (!open) return;
     setGeoLoading(true);
@@ -190,28 +192,28 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
     }
   }
 
-  // Obtener ruta OSRM cuando tenemos ambas ubicaciones
+  
   useEffect(() => {
     if (userLoc && pacienteLoc) {
       fetchOsrmRoute(userLoc, pacienteLoc);
     }
   }, [userLoc, pacienteLoc]);
 
-  // Iniciar rastreo GPS automáticamente al montar
+  
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocError("Geolocalización no soportada por este navegador");
       return;
     }
 
-    // Verificar estado de permiso con Permissions API si está disponible
+    
     if (navigator.permissions) {
       navigator.permissions
         .query({ name: "geolocation" as PermissionName })
         .then((result) => {
           setPermStatus(result.state as "prompt" | "granted" | "denied");
           if (result.state === "granted") {
-            // Ya tiene permiso, iniciar rastreo
+            
             startGpsTracking();
           }
           result.addEventListener("change", () => {
@@ -220,7 +222,7 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
           });
         })
         .catch(() => {
-          // Permissions API no soportada, intentar directo
+          
           startGpsTracking();
         });
     } else {
@@ -239,19 +241,18 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
   function startGpsTracking() {
     if (!navigator.geolocation) return;
 
-    // Lectura inicial
+    
     navigator.geolocation.getCurrentPosition(
       handlePosition,
       handleError,
       { enableHighAccuracy: false, timeout: 15000 }
     );
 
-    // Watch continuo
+    
     if (watchIdRef.current === null) {
       const id = navigator.geolocation.watchPosition(
         handlePosition,
         (err) => {
-          console.warn("WatchPosition error:", err.message);
         },
         { enableHighAccuracy: false, maximumAge: 5000, timeout: 30000 }
       );
@@ -274,7 +275,7 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
       },
       (err) => {
         handleError(err);
-        // Si es permiso denegado o timeout rápido, el navegador probablemente bloqueó silenciosamente
+        
         if (err.code === 1 || err.code === 3) {
           setPermStatus("denied");
           toast.error("El navegador bloqueó la ubicación. Sigue las instrucciones del banner amarillo arriba del mapa para activarla.", {
@@ -289,14 +290,14 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const routeUrl = (() => {
-    // En móvil usar URL de Google Maps que redirige a la app nativa
+    
     if (isMobile && pacienteLoc) {
       if (userLoc && pacienteLoc) {
         return `https://maps.google.com/maps?saddr=${userLoc.lat},${userLoc.lng}&daddr=${pacienteLoc.lat},${pacienteLoc.lng}&directionsmode=driving`;
       }
       return `https://maps.google.com/maps?daddr=${pacienteLoc.lat},${pacienteLoc.lng}&directionsmode=driving`;
     }
-    // Desktop: URL web de Google Maps
+    
     if (userLoc && pacienteLoc) {
       return `https://www.google.com/maps/dir/${userLoc.lat},${userLoc.lng}/${pacienteLoc.lat},${pacienteLoc.lng}?travelmode=driving`;
     }
@@ -560,7 +561,7 @@ export default function WaitingRoomPage() {
   const [fechaActual, setFechaActual] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<WaitingTicket["status"] | "todos">("todos");
 
-  // Obtener fecha actual en formato de Perú
+  
   useEffect(() => {
     const hoy = new Date().toLocaleDateString('es-PE', {
       timeZone: 'America/Lima',
@@ -572,12 +573,12 @@ export default function WaitingRoomPage() {
     setFechaActual(hoy.charAt(0).toUpperCase() + hoy.slice(1));
   }, []);
 
-  // Cargar métricas desde la API
+  
   const loadMetrics = async () => {
     try {
       setLoading(true);
       
-      // Cargar métricas secuencialmente con delay
+      
       const enRuta = await contarCitasPorRutaDia("En ruta");
       await new Promise(resolve => setTimeout(resolve, 200));
       
@@ -594,7 +595,6 @@ export default function WaitingRoomPage() {
       setProgramadaCount(programada.count || 0);
       setFinalizadoCount(finalizado.count || 0);
     } catch (err) {
-      console.error("Error al cargar métricas:", err);
     } finally {
       setLoading(false);
     }
@@ -604,13 +604,13 @@ export default function WaitingRoomPage() {
     loadMetrics();
   }, []);
 
-  // Simular carga inicial mínima de 600ms
+  
   useEffect(() => {
     const timer = setTimeout(() => setPageLoading(false), 600);
     return () => clearTimeout(timer);
   }, []);
 
-  // Cargar visitas desde la API
+  
   useEffect(() => {
     const loadVisits = async () => {
       try {
@@ -618,7 +618,7 @@ export default function WaitingRoomPage() {
         const data = await obtenerCitasDomicilioHoy();
         const citas = data.records || [];
         
-        // Obtener información completa de pacientes para cada cita con delay
+        
         const resultados: any[] = [];
         for (const cita of citas) {
           const fields = cita.fields || {};
@@ -629,32 +629,31 @@ export default function WaitingRoomPage() {
               const paciente = await obtenerPaciente(pacienteId);
               resultados.push({ cita, paciente });
             } catch (err) {
-              console.error(`Error al obtener paciente ${pacienteId}:`, err);
               resultados.push({ cita, paciente: null });
             }
           } else {
             resultados.push({ cita, paciente: null });
           }
           
-          // Delay de 300ms entre llamadas
+          
           await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        // Mapear citas de la API al formato de WaitingTicket
+        
         const mappedQueue: WaitingTicket[] = resultados.map(({ cita, paciente }) => {
           const fields = cita.fields || {};
           const pacienteBasico = fields.pacientes || {};
           const pacienteBasicoFields = pacienteBasico.fields || {};
           const pacienteCompletoFields = paciente?.fields || {};
           
-          // Usar datos del paciente completo si está disponible, si no usar los básicos
+          
           const nombre = pacienteCompletoFields.nombreCompleto || pacienteBasicoFields.nombreCompleto || "Sin nombre";
           const direccion = pacienteCompletoFields.Dirección || pacienteBasicoFields.Dirección || pacienteCompletoFields.direccion || pacienteBasicoFields.direccion || "Sin dirección";
           const telefono = pacienteCompletoFields.telefono || pacienteBasicoFields.telefono || "";
           const wasap = pacienteCompletoFields.Wasap || pacienteBasicoFields.Wasap || pacienteCompletoFields.Mensaje?.url || pacienteBasicoFields.Mensaje?.url || telefono;
           const ubicacionUrl = pacienteCompletoFields.Ubicacion?.url || pacienteBasicoFields.Ubicacion?.url || pacienteCompletoFields.EnlaceGoogle || pacienteBasicoFields.EnlaceGoogle || "";
           
-          // Mapear estado de rutaDia a status del componente
+          
           let status: WaitingTicket["status"] = "programado";
           if (fields.rutaDia === "En ruta") status = "en_ruta";
           else if (fields.rutaDia === "En domicilio") status = "en_domicilio";
@@ -678,7 +677,6 @@ export default function WaitingRoomPage() {
         
         setQueue(mappedQueue.sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)));
       } catch (err) {
-        console.error("Error al cargar visitas:", err);
       } finally {
         setLoadingVisits(false);
       }
@@ -694,7 +692,7 @@ export default function WaitingRoomPage() {
     if (idx >= statusOrder.length - 1) return;
     const next = statusOrder[idx + 1];
 
-    // Mapear status a rutaDia
+    
     const statusToRutaDia: Record<WaitingTicket["status"], string> = {
       programado: "Programada",
       en_ruta: "En ruta",
@@ -713,10 +711,9 @@ export default function WaitingRoomPage() {
         }),
       );
       toast.success(`Estado actualizado: ${ticket.patientName}`, { id: loadingToast });
-      // Actualizar métricas después de cambiar estado
+      
       loadMetrics();
     } catch (err) {
-      console.error("Error al actualizar rutaDia:", err);
       toast.error("Error al actualizar el estado de la visita", { id: loadingToast });
     }
   };
@@ -736,10 +733,9 @@ export default function WaitingRoomPage() {
         prev.map((t) => (t.id === next.id ? { ...t, status: "en_ruta" as const } : t)),
       );
       toast.success(`En ruta: ${next.patientName} → ${next.visitAddress}`, { id: loadingToast });
-      // Actualizar métricas después de cambiar estado
+      
       loadMetrics();
     } catch (err) {
-      console.error("Error al actualizar rutaDia:", err);
       toast.error("Error al iniciar el desplazamiento", { id: loadingToast });
     }
   };
@@ -747,7 +743,7 @@ export default function WaitingRoomPage() {
   const enDomicilio = queue.filter((t) => t.status === "en_domicilio").length;
   const enRuta = queue.filter((t) => t.status === "en_ruta").length;
 
-  // Mostrar indicador de carga inicial
+  
   if (pageLoading) {
     return (
       <div className="flex items-center justify-center h-64">

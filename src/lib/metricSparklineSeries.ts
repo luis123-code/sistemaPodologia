@@ -1,23 +1,23 @@
 import { addDaysIso } from "@/lib/clinicDates";
 import type { Appointment, Invoice, InventoryItem, MedicalRecord, Patient, PodiatryService } from "@/data/mockData";
 
-/** Garantiza al menos 2 puntos para el SVG. */
+
 export function ensureSparklineSeries(values: number[]): number[] {
   if (values.length >= 2) return values;
   if (values.length === 1) return [values[0], values[0]];
   return [0, 0];
 }
 
-/** Días consecutivos ISO terminando en `endInclusive`. */
+
 export function dayWindowEndInclusive(endInclusive: string, length: number): string[] {
   const n = Math.max(2, length);
   return Array.from({ length: n }, (_, i) => addDaysIso(endInclusive, -(n - 1 - i)));
 }
 
-/** Acumulado de cantidad de ítems al recorrerlos ordenados por fecha (último = total de ítems). */
+
 export function cumulativeCountChronological<T>(items: T[], getDate: (t: T) => string): number[] {
   if (items.length === 0) return [0, 0];
-  // Filtrar items con fecha válida y ordenar
+  
   const validItems = items.filter((item) => {
     const date = getDate(item);
     return date && typeof date === 'string' && date.length > 0;
@@ -27,7 +27,7 @@ export function cumulativeCountChronological<T>(items: T[], getDate: (t: T) => s
   return sorted.map((_, i) => i + 1);
 }
 
-/** Solo ítems que cumplen `predicate`, ordenados por fecha; acumulado cuenta hasta el total filtrado. */
+
 export function cumulativeCountChronologicalFiltered<T>(
   items: T[],
   getDate: (t: T) => string,
@@ -36,7 +36,7 @@ export function cumulativeCountChronologicalFiltered<T>(
   return cumulativeCountChronological(items.filter(predicate), getDate);
 }
 
-/** Por cada día del rango [from, to], visitas con `date === día`; serie = acumulado (último = suma en el rango). */
+
 export function cumulativeCountsPerDayInRange(
   fromInclusive: string,
   toInclusive: string,
@@ -54,7 +54,7 @@ export function cumulativeCountsPerDayInRange(
   return series.length ? ensureSparklineSeries(series) : [0, 0];
 }
 
-/** Visitas por día en una ventana que termina en `referenceToday` (último punto = visitas ese día). */
+
 export function appointmentsPerDayWindow(appointments: Appointment[], referenceToday: string, numDays: number): number[] {
   const days = dayWindowEndInclusive(referenceToday, numDays);
   return ensureSparklineSeries(days.map((d) => appointments.filter((a) => a?.date === d).length));
@@ -66,7 +66,7 @@ export function cumulativePatientsByRegistration(patients: Patient[]): number[] 
 
 export function cumulativePatientsWithStatus(patients: Patient[], status: Patient["status"]): number[] {
   if (patients.length === 0) return [0, 0];
-  // Filtrar pacientes con fecha válida
+  
   const validPatients = patients.filter(p => p?.registeredAt && typeof p.registeredAt === 'string');
   if (validPatients.length === 0) return [0, 0];
   const sorted = [...validPatients].sort((a, b) => a.registeredAt.localeCompare(b.registeredAt));
@@ -77,7 +77,7 @@ export function cumulativePatientsWithStatus(patients: Patient[], status: Patien
   });
 }
 
-/** Altas por día en el mes calendario; acumulado coincide con altas del mes. */
+
 export function cumulativeNewPatientsInMonth(patients: Patient[], monthStart: string, nextMonthStart: string): number[] {
   const lastDay = addDaysIso(nextMonthStart, -1);
   return cumulativeCountsPerDayInRange(monthStart, lastDay, (d) => patients.filter((p) => p.registeredAt === d).length);
@@ -107,7 +107,7 @@ export function runningUniqueDiagnosisCount(records: MedicalRecord[]): number[] 
   });
 }
 
-/** Fichas del mes ordenadas por fecha; el último punto coincide con atenciones del mes. */
+
 export function cumulativeRecordsInMonthChronological(
   records: MedicalRecord[],
   monthStart: string,
@@ -185,7 +185,7 @@ export function runningAverageServicePrice(services: PodiatryService[]): number[
   });
 }
 
-/** Tres puntos: número de servicios por categoría (consulta, quirúrgico, ortesis). */
+
 export function serviceCountsByCategoryTriplet(services: PodiatryService[]): number[] {
   let c = 0;
   let q = 0;

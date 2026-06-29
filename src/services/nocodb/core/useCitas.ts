@@ -1,7 +1,4 @@
-/**
- * Hook React para Citas
- * Maneja el estado y operaciones de citas
- */
+
 
 import { useState, useCallback, useEffect } from "react";
 import { format } from "date-fns";
@@ -133,10 +130,10 @@ export function useCitas(initialParams?: UseCitasParams): UseCitasReturn {
     await cargar();
   }, [cargar]);
 
-  // Cargar inicialmente
+  
   useEffect(() => {
     cargar(initialParams);
-  }, []); // Solo al montar el componente
+  }, []); 
 
   return {
     citas,
@@ -152,9 +149,7 @@ export function useCitas(initialParams?: UseCitasParams): UseCitasReturn {
   };
 }
 
-/**
- * Hook para citas de hoy
- */
+
 export function useCitasDeHoy() {
   const [citas, setCitas] = useState<Cita[]>([]);
   const [loading, setLoading] = useState(false);

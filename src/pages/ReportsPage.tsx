@@ -28,6 +28,7 @@ import { obtenerPacientesRegistrados } from "@/services/nocodb/pacientes.service
 import { obtenerCitasResumen, contarCitasPorPaciente } from "@/services/nocodb/citas.service";
 import { obtenerHistorialResumen } from "@/services/nocodb/historialMedico.service";
 import { obtenerFacturacionResumen } from "@/services/nocodb/facturacion.service";
+import { requireAuthToken } from "@/lib/auth";
 import { AreaChartShadcn } from "@/components/charts/AreaChartShadcn";
 import {
   ChartContainer,
@@ -98,7 +99,7 @@ const visitasDomicilioConfig = {
   },
 } satisfies ChartConfig;
 
-// Hook para animar números
+
 function useAnimatedNumber(value: number, duration: number = 1000): number {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -111,7 +112,7 @@ function useAnimatedNumber(value: number, duration: number = 1000): number {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Easing function (ease-out)
+      
       const easeOut = 1 - Math.pow(1 - progress, 3);
       const currentValue = Math.round(startValue + (value - startValue) * easeOut);
 
@@ -137,7 +138,7 @@ function labelForYm(ym: string): string {
   return `${MONTH_SHORT[m - 1]} ${y}`;
 }
 
-// Distritos conocidos de Lima
+
 const DISTRITOS_LIMA = [
   "Ancón", "Ate", "Barranco", "Breña", "Carabayllo", "Cercado de Lima", "Chaclacayo", "Chorrillos",
   "Cieneguilla", "Comas", "El Agustino", "Independencia", "Jesús María", "La Molina", "La Victoria",
@@ -212,7 +213,7 @@ export default function ReportsPage() {
   const [pacientesError, setPacientesError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Contador de tiempo transcurrido durante carga del mapa
+  
   useEffect(() => {
     if (!pacientesLoading) {
       setElapsedSeconds(0);
@@ -249,20 +250,19 @@ export default function ReportsPage() {
   const [facturacionLoading, setFacturacionLoading] = useState(true);
   const [facturacionError, setFacturacionError] = useState<string | null>(null);
 
-  // Geocodificar dirección con Nominatim
+  
   async function geocodeAddress(address: string): Promise<{ lng: number; lat: number } | null> {
+    requireAuthToken();
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ", Lima, Peru")}&limit=1`,
         { headers: { "User-Agent": "SoleFlowManager/1.0" } }
       );
       const data = await response.json();
-      console.log("[Geocode] address:", address, "→ results:", data);
       if (data && data.length > 0) {
         return { lng: parseFloat(data[0].lon), lat: parseFloat(data[0].lat) };
       }
     } catch (e) {
-      console.error("Geocoding error:", e);
     }
     return null;
   }
@@ -270,20 +270,18 @@ export default function ReportsPage() {
   const [mapCargado, setMapCargado] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
 
-  // Cargar datos de pacientes desde la API (sin geocoding)
+  
   useEffect(() => {
     async function cargarPacientes() {
       try {
         setPacientesLoading(true);
         const result = await obtenerPacientesRegistrados();
-        console.log("obtenerPacientesRegistrados:", result);
         setPacientesRegistradosCount(result.count || 0);
         setPacientesActivos(result.activos || 0);
         setPacientesInactivos(result.inactivos || 0);
         setPacientesPorMesAPI(result.pacientesPorMes || []);
         setPacientesError(null);
       } catch (err) {
-        console.error("Error al cargar pacientes:", err);
         setPacientesError("Error al cargar");
       } finally {
         setPacientesLoading(false);
@@ -292,7 +290,7 @@ export default function ReportsPage() {
     cargarPacientes();
   }, []);
 
-  // Geocodificar solo cuando el usuario hace clic en "Cargar mapa"
+  
   async function cargarMapa() {
     if (mapCargado || mapLoading) return;
     try {
@@ -312,13 +310,12 @@ export default function ReportsPage() {
           const countResult = await contarCitasPorPaciente(pacienteId);
           visitas = countResult.count || 0;
         } catch (e) {
-          console.warn(`[Citas] Error contando citas paciente ${pacienteId}:`, e);
         }
 
         const coord = await geocodeAddress(distrito);
         if (coord) porPaciente.push({ distrito, visitas, ...coord });
 
-        // Respetar rate limit Nominatim (1 req/s)
+        
         await new Promise((r) => setTimeout(r, 1100));
       }
 
@@ -331,19 +328,17 @@ export default function ReportsPage() {
       setPacientesCoords(Array.from(acumuladoMap.values()));
       setMapCargado(true);
     } catch (err) {
-      console.error("Error al cargar mapa:", err);
     } finally {
       setMapLoading(false);
     }
   }
 
-  // Cargar datos de citas desde la API
+  
   useEffect(() => {
     async function cargarCitas() {
       try {
         setCitasLoading(true);
         const result = await obtenerCitasResumen();
-        console.log("obtenerCitasResumen:", result);
         setCitasCount(result.count || 0);
         setCitasConfirmadas(result.confirmadas || 0);
         setCitasPendientes(result.pendientes || 0);
@@ -354,7 +349,6 @@ export default function ReportsPage() {
         setVisitasDomicilioPorMes(result.visitasDomicilioPorMes || []);
         setCitasError(null);
       } catch (err) {
-        console.error("Error al cargar citas:", err);
         setCitasError("Error al cargar");
       } finally {
         setCitasLoading(false);
@@ -363,19 +357,17 @@ export default function ReportsPage() {
     cargarCitas();
   }, []);
 
-  // Cargar datos de historial médico desde la API
+  
   useEffect(() => {
     async function cargarHistorial() {
       try {
         setHistorialLoading(true);
         const result = await obtenerHistorialResumen();
-        console.log("obtenerHistorialResumen:", result);
         setHistorialCount(result.count || 0);
         setDiagnosticosUnicos(result.diagnosticosUnicos || 0);
         setFichasPorMesAPI(result.fichasPorMes || []);
         setHistorialError(null);
       } catch (err) {
-        console.error("Error al cargar historial:", err);
         setHistorialError("Error al cargar");
       } finally {
         setHistorialLoading(false);
@@ -384,7 +376,7 @@ export default function ReportsPage() {
     cargarHistorial();
   }, []);
 
-  // Cargar datos de facturación desde la API
+  
   useEffect(() => {
     async function cargarFacturacion() {
       try {
@@ -397,7 +389,6 @@ export default function ReportsPage() {
         setRevenueByMonthAPI(result.revenueByMonth || []);
         setFacturacionError(null);
       } catch (err) {
-        console.error("Error al cargar facturación:", err);
         setFacturacionError("Error al cargar");
       } finally {
         setFacturacionLoading(false);
@@ -431,7 +422,7 @@ export default function ReportsPage() {
     const totalFacturado = invoices.reduce((s, i) => s + i.amountPen, 0);
     const pendienteCobro = invoices.filter((i) => i.status === "Pendiente" || i.status === "Parcial").reduce((s, i) => s + i.amountPen, 0);
 
-    // Usar datos reales de la API si están disponibles, sino los mock
+    
     const visitStatusRowsInner: Record<string, string|number>[] = citasCount > 0 ? [
       { estado: "Confirmada", cantidad: citasConfirmadas },
       { estado: "Pendiente", cantidad: citasPendientes },
@@ -443,7 +434,7 @@ export default function ReportsPage() {
       { estado: "Cancelado", cantidad: canc },
     ];
 
-    // Usar datos de API si están disponibles, sino calcular localmente
+    
     let revenueByMonthInner: Record<string, string|number>[];
     if (revenueByMonthAPI.length > 0) {
       revenueByMonthInner = revenueByMonthAPI;
@@ -460,7 +451,7 @@ export default function ReportsPage() {
       }));
     }
 
-    // Usar datos de API si están disponibles, sino calcular localmente
+    
     let clinicalByMonthInner: Record<string, string|number>[];
     if (fichasPorMesAPI.length > 0) {
       clinicalByMonthInner = fichasPorMesAPI;
@@ -500,13 +491,13 @@ export default function ReportsPage() {
     };
   }, [pacientesRegistradosCount, pacientesActivos, pacientesInactivos, pacientesPorMesAPI, citasCount, citasConfirmadas, citasPendientes, citasCanceladas, citasDescontinuadas, tasaCumplimientoAPI, historialCount, diagnosticosUnicos, fichasPorMesAPI, facturacionTotal, facturacionPendiente, facturacionCobrada, revenueByMonthAPI]);
 
-  // Animar métricas principales (must be before early return to avoid hooks violation)
+  
   const animVisitas = useAnimatedNumber(citasCount || kpi.visitas, 1200);
   const animPacientes = useAnimatedNumber(pacientesRegistradosCount || kpi.pacientes, 1200);
   const animFichas = useAnimatedNumber(historialCount || kpi.fichas, 1200);
   const animFacturacion = useAnimatedNumber(facturacionTotal || kpi.facturacion, 1200);
 
-  // Mostrar indicador de carga inicial
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">

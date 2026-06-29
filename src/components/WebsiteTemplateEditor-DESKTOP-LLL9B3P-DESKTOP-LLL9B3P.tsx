@@ -8,7 +8,6 @@ import {
   Type,
   RotateCcw,
   Loader2,
-  Camera,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -100,7 +99,8 @@ export function WebsiteTemplateEditor() {
                 afterImage: c.despues || "",
               })) || base.beforeAfter,
               galleryImages: Array.isArray(infoWeb.galeria) ? infoWeb.galeria.map((g: any) => g || "") : base.galleryImages,
-              professionalPhotoUrl: infoWeb.fotoProfesional || base.professionalPhotoUrl,
+              galleryPodologiaProfesional: Array.isArray(infoWeb.galeriaProfesional) ? infoWeb.galeriaProfesional.map((g: any) => g || "") : base.galleryPodologiaProfesional,
+              galleryPanel: Array.isArray(infoWeb.galeriaPanel) ? infoWeb.galeriaPanel.map((g: any) => g || "") : base.galleryPanel,
             });
           }
         }
@@ -140,8 +140,16 @@ export function WebsiteTemplateEditor() {
       const uploadedGallery = await Promise.all(
         settings.galleryImages.map((img) => uploadIfNeeded(img))
       );
-      const uploadedProfessionalPhoto = await uploadIfNeeded(settings.professionalPhotoUrl);
 
+      const uploadedGalleryProfesional = await Promise.all(
+        settings.galleryPodologiaProfesional.map((img) => uploadIfNeeded(img))
+      );
+
+      const uploadedGalleryPanel = await Promise.all(
+        settings.galleryPanel.map((img) => uploadIfNeeded(img))
+      );
+
+      
       const plantillaData = {
         titulosSubtitulos: (settings.heroTitles || []).map((ht) => ({
           titulo: ht.titulo,
@@ -153,19 +161,22 @@ export function WebsiteTemplateEditor() {
           descripcion: s.description,
         })),
         galeria: uploadedGallery.map((img) => img || null),
+        galeriaProfesional: uploadedGalleryProfesional.map((img) => img || null),
+        galeriaPanel: uploadedGalleryPanel.map((img) => img || null),
         casos: uploadedBeforeAfter.map((ba) => ({
           label: ba.label,
           antes: ba.beforeImage || null,
           despues: ba.afterImage || null,
         })),
-        fotoProfesional: uploadedProfessionalPhoto || null,
       };
 
+      
       setSettings((prev) => ({
         ...prev,
         beforeAfter: uploadedBeforeAfter,
         galleryImages: uploadedGallery,
-        professionalPhotoUrl: uploadedProfessionalPhoto,
+        galleryPodologiaProfesional: uploadedGalleryProfesional,
+        galleryPanel: uploadedGalleryPanel,
       }));
 
       const resultado = await crearPlantilla(plantillaData as any);
@@ -235,29 +246,15 @@ export function WebsiteTemplateEditor() {
           afterImage: c.despues || ""
         })) || settings.beforeAfter,
         galleryImages: Array.isArray(infoWeb.galeria) ? infoWeb.galeria.map((g: any) => g || "") : settings.galleryImages,
-        professionalPhotoUrl: infoWeb.fotoProfesional || settings.professionalPhotoUrl,
+        galleryPodologiaProfesional: Array.isArray(infoWeb.galeriaProfesional) ? infoWeb.galeriaProfesional.map((g: any) => g || "") : settings.galleryPodologiaProfesional,
+        galleryPanel: Array.isArray(infoWeb.galeriaPanel) ? infoWeb.galeriaPanel.map((g: any) => g || "") : settings.galleryPanel,
       };
-
+      
       setSettings(newSettings);
       toast.success(`Plantilla "${ultimaPlantilla.fields?.Title || 'Sin título'}" cargada desde NocoDB`);
       
     } catch (error) {
       toast.error("Error al cargar la plantilla desde NocoDB");
-    }
-  };
-
-  const onProfessionalPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file || !file.type.startsWith("image/")) {
-      toast.error("Selecciona un archivo de imagen");
-      return;
-    }
-    try {
-      const url = await readFileAsDataUrl(file);
-      persist({ ...settings, professionalPhotoUrl: url });
-    } catch {
-      toast.error("No se pudo leer la imagen");
     }
   };
 
@@ -340,7 +337,11 @@ export function WebsiteTemplateEditor() {
     });
   };
 
-  const onGalleryImage = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const onGalleryImage = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    index: number,
+    key: "galleryImages" | "galleryPodologiaProfesional" | "galleryPanel"
+  ) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !file.type.startsWith("image/")) {
@@ -349,34 +350,122 @@ export function WebsiteTemplateEditor() {
     }
     try {
       const url = await readFileAsDataUrl(file);
-      const next = [...settings.galleryImages];
+      const next = [...settings[key]];
       next[index] = url;
-      persist({ ...settings, galleryImages: next });
+      persist({ ...settings, [key]: next });
     } catch {
       toast.error("No se pudo leer la imagen");
     }
   };
 
-  const addGalleryImage = () => {
-    if (settings.galleryImages.length >= 2) {
-      toast.info("La galería web es de 2 imágenes");
+  const addGalleryImage = (key: "galleryImages" | "galleryPodologiaProfesional" | "galleryPanel", max: number) => {
+    if (settings[key].length >= max) {
+      toast.info(`Esta galería admite hasta ${max} imágenes`);
       return;
     }
-    persist({ ...settings, galleryImages: [...settings.galleryImages, ""] });
+    persist({ ...settings, [key]: [...settings[key], ""] });
   };
 
-  const removeGalleryImage = (index: number) => {
+  const removeGalleryImage = (
+    index: number,
+    key: "galleryImages" | "galleryPodologiaProfesional" | "galleryPanel"
+  ) => {
     persist({
       ...settings,
-      galleryImages: settings.galleryImages.filter((_, i) => i !== index),
+      [key]: settings[key].filter((_, i) => i !== index),
     });
   };
 
-  const updateGalleryImage = (index: number, value: string) => {
-    const next = [...settings.galleryImages];
+  const updateGalleryImage = (
+    index: number,
+    value: string,
+    key: "galleryImages" | "galleryPodologiaProfesional" | "galleryPanel"
+  ) => {
+    const next = [...settings[key]];
     next[index] = value;
-    persist({ ...settings, galleryImages: next });
+    persist({ ...settings, [key]: next });
   };
+
+  function renderGalleryCard(
+    title: string,
+    description: string,
+    key: "galleryImages" | "galleryPodologiaProfesional" | "galleryPanel",
+    max: number
+  ) {
+    const list = settings[key];
+    return (
+      <Card className="card-shadow">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <div>
+            <CardTitle className="text-base">{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="gap-1"
+            onClick={() => addGalleryImage(key, max)}
+            disabled={list.length >= max}
+          >
+            <Plus className="h-4 w-4" />
+            Añadir
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {list.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay imágenes. Pulsa «Añadir».</p>
+          ) : (
+            list.map((url, index) => (
+              <div key={index} className="rounded-lg border border-border/80 bg-muted/20 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Imagen {index + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => removeGalleryImage(index, key)}
+                    aria-label="Eliminar imagen"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div
+                  className={cn(
+                    "flex aspect-[16/9] max-h-44 items-center justify-center overflow-hidden rounded-md border border-dashed bg-muted/30",
+                    url && "border-solid",
+                  )}
+                >
+                  {url ? (
+                    <img src={url} alt={`${title} ${index + 1}`} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Sin imagen</span>
+                  )}
+                </div>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  className="cursor-pointer text-xs"
+                  onChange={(e) => onGalleryImage(e, index, key)}
+                />
+                <div className="grid gap-1.5">
+                  <Label className="text-xs text-muted-foreground">O pega una URL</Label>
+                  <Input
+                    type="text"
+                    value={url}
+                    onChange={(e) => updateGalleryImage(index, e.target.value, key)}
+                    placeholder="https://..."
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (initialLoading) {
     return (
@@ -404,7 +493,7 @@ export function WebsiteTemplateEditor() {
             </CardTitle>
             <CardDescription>
               Personaliza textos, tipografía, imágenes, servicios visibles, casos antes/después y el teléfono de
-              contacto. Los datos se guardan en NocoDB.
+              contacto. Los datos se guardan solo en este navegador (demo).
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -525,64 +614,6 @@ export function WebsiteTemplateEditor() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <div>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Camera className="h-4 w-4 text-primary" />
-                  Foto profesional
-                </CardTitle>
-                <CardDescription>Sube una foto de la clínica o del profesional para la web.</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col sm:flex-row items-start gap-4">
-                <div
-                  className="relative flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/80 bg-muted/20"
-                >
-                  {settings.professionalPhotoUrl ? (
-                    <img
-                      src={settings.professionalPhotoUrl}
-                      alt="Foto profesional"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Sin imagen</span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <input
-                    id="wt-professional-photo"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onProfessionalPhoto}
-                  />
-                  <Label htmlFor="wt-professional-photo" className="cursor-pointer">
-                    <Button type="button" variant="secondary" size="sm" className="gap-1" asChild>
-                      <span>
-                        <Plus className="h-4 w-4" />
-                        {settings.professionalPhotoUrl ? "Cambiar foto" : "Subir foto"}
-                      </span>
-                    </Button>
-                  </Label>
-                  {settings.professionalPhotoUrl && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive justify-start px-2"
-                      onClick={() => persist({ ...settings, professionalPhotoUrl: "" })}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Eliminar
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
                   <Layers className="h-4 w-4 text-primary" />
                   Servicios en la web
                 </CardTitle>
@@ -631,76 +662,26 @@ export function WebsiteTemplateEditor() {
             </CardContent>
           </Card>
 
-          <Card className="card-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <div>
-                <CardTitle className="text-base">Galería web</CardTitle>
-                <CardDescription>Dos imágenes destacadas para la sección de galería de tu web.</CardDescription>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="gap-1"
-                onClick={addGalleryImage}
-                disabled={settings.galleryImages.length >= 2}
-              >
-                <Plus className="h-4 w-4" />
-                Añadir
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {settings.galleryImages.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay imágenes de galería. Pulsa «Añadir».</p>
-              ) : (
-                settings.galleryImages.map((url, index) => (
-                  <div key={index} className="rounded-lg border border-border/80 bg-muted/20 p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">Imagen {index + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => removeGalleryImage(index)}
-                        aria-label="Eliminar imagen"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div
-                      className={cn(
-                        "flex aspect-[16/9] max-h-44 items-center justify-center overflow-hidden rounded-md border border-dashed bg-muted/30",
-                        url && "border-solid",
-                      )}
-                    >
-                      {url ? (
-                        <img src={url} alt={`Galería ${index + 1}`} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Sin imagen</span>
-                      )}
-                    </div>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      className="cursor-pointer text-xs"
-                      onChange={(e) => onGalleryImage(e, index)}
-                    />
-                    <div className="grid gap-1.5">
-                      <Label className="text-xs text-muted-foreground">O pega una URL</Label>
-                      <Input
-                        type="text"
-                        value={url}
-                        onChange={(e) => updateGalleryImage(index, e.target.value)}
-                        placeholder="https://..."
-                        className="text-xs"
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          {renderGalleryCard(
+            "Galería web",
+            "Dos imágenes destacadas para la sección de galería de tu web.",
+            "galleryImages",
+            2
+          )}
+
+          {renderGalleryCard(
+            "Galería podología profesional",
+            "Imagen principal destacada de la web.",
+            "galleryPodologiaProfesional",
+            1
+          )}
+
+          {renderGalleryCard(
+            "Galería en el panel",
+            "Hasta 3 imágenes para mostrar en el panel de la web.",
+            "galleryPanel",
+            3
+          )}
 
           <Card className="card-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -790,7 +771,7 @@ export function WebsiteTemplateEditor() {
           <Card className="card-shadow overflow-hidden">
             <CardHeader className="border-b bg-gradient-to-br from-primary/10 to-transparent py-3">
               <CardTitle className="text-sm font-semibold">Vista previa</CardTitle>
-              <CardDescription className="text-xs">Así podría verse tu cabecera pública.</CardDescription>
+              <CardDescription className="text-xs">Así podría verse tu cabecera pública (demo).</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div
@@ -824,6 +805,45 @@ export function WebsiteTemplateEditor() {
                     </li>
                   ))}
                 </ul>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">Galería web</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {settings.galleryImages.filter(Boolean).length === 0 ? (
+                    <div className="col-span-2 text-[10px] text-muted-foreground">Sin imágenes</div>
+                  ) : (
+                    settings.galleryImages.filter(Boolean).map((img, idx) => (
+                      <div key={idx} className="aspect-video rounded bg-muted overflow-hidden">
+                        <img src={img} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">Galería profesional</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {settings.galleryPodologiaProfesional.filter(Boolean).length === 0 ? (
+                    <div className="text-[10px] text-muted-foreground">Sin imagen</div>
+                  ) : (
+                    settings.galleryPodologiaProfesional.filter(Boolean).map((img, idx) => (
+                      <div key={idx} className="aspect-video rounded bg-muted overflow-hidden">
+                        <img src={img} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">Galería panel</p>
+                <div className="grid grid-cols-3 gap-1">
+                  {settings.galleryPanel.filter(Boolean).length === 0 ? (
+                    <div className="col-span-3 text-[10px] text-muted-foreground">Sin imágenes</div>
+                  ) : (
+                    settings.galleryPanel.filter(Boolean).map((img, idx) => (
+                      <div key={idx} className="aspect-square rounded bg-muted overflow-hidden">
+                        <img src={img} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    ))
+                  )}
+                </div>
+
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">Antes / después</p>
                 <div className="grid grid-cols-2 gap-2">
                   {settings.beforeAfter.slice(0, 2).map((p) => (

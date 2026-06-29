@@ -1,20 +1,13 @@
-/**
- * Tipos de datos para NocoDB API v3
- * Interfaces para Paciente, HistorialMedico y Cita
- */
 
-/**
- * Interfaz de Ubicación/Mensaje
- */
+
+
 export interface LinkField {
   type: string;
   label: string;
   url: string;
 }
 
-/**
- * Interfaz de Cita anidada en Paciente
- */
+
 export interface CitaAnidada {
   id: number;
   id_fields: { Id: number };
@@ -23,9 +16,7 @@ export interface CitaAnidada {
   };
 }
 
-/**
- * Interfaz de Paciente - estructura real de NocoDB API
- */
+
 export interface Paciente {
   Id?: number;
   id?: number;
@@ -46,7 +37,7 @@ export interface Paciente {
     Mensaje?: LinkField;
     citas?: CitaAnidada[];
   };
-  // Campos legacy para compatibilidad (directos sin fields)
+  
   nombreCompleto?: string;
   fotoPacientes?: string | null;
   Edad?: number | null;
@@ -70,9 +61,7 @@ export interface Paciente {
   creado_en?: string;
 }
 
-/**
- * Interfaz de Historial Médico
- */
+
 export interface HistorialMedico {
   Id?: number;
   paciente_id: number;
@@ -85,9 +74,7 @@ export interface HistorialMedico {
   creado_en?: string;
 }
 
-/**
- * Interfaz de Cita
- */
+
 export interface Cita {
   Id?: number;
   paciente_id: number;

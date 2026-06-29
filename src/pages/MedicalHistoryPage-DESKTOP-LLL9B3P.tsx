@@ -99,7 +99,7 @@ export default function MedicalHistoryPage() {
   const [expedienteRegistrosAPI, setExpedienteRegistrosAPI] = useState<any[]>([]);
   const [loadingExpediente, setLoadingExpediente] = useState(false);
   
-  // Estados para el formulario de agregar historial médico
+  
   const [nuevoHistorialOpen, setNuevoHistorialOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"historial" | "cita">("historial");
   const [citaSeleccionadaTexto, setCitaSeleccionadaTexto] = useState("");
@@ -115,13 +115,13 @@ export default function MedicalHistoryPage() {
     citaId: ""
   });
   
-  // Estados para el dropdown de citas
+  
   const [citasDisponibles, setCitasDisponibles] = useState<any[]>([]);
   const [citasFiltradas, setCitasFiltradas] = useState<any[]>([]);
   const [showCitasDropdown, setShowCitasDropdown] = useState(false);
   const [cargandoCitas, setCargandoCitas] = useState(false);
   
-  // Estados para el modal de crear cita rápida
+  
   const [crearCitaOpen, setCrearCitaOpen] = useState(false);
   const [newVisitForm, setNewVisitForm] = useState({
     fecha: "",
@@ -138,7 +138,7 @@ export default function MedicalHistoryPage() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [hoveredRating, setHoveredRating] = useState<number | null>(null);
 
-  // Cargar todos los pacientes al hacer focus en el input
+  
   const loadAllPatients = async () => {
     if (patientSearchResults.length > 0) return;
     setPatientSearchLoading(true);
@@ -147,14 +147,13 @@ export default function MedicalHistoryPage() {
       setPatientSearchResults(data.pacientes || []);
       setShowPatientDropdown(true);
     } catch (err) {
-      console.error("Error al cargar pacientes:", err);
       setPatientSearchResults([]);
     } finally {
       setPatientSearchLoading(false);
     }
   };
 
-  // Buscar pacientes cuando cambia el texto de búsqueda
+  
   useEffect(() => {
     const searchPatients = async () => {
       if (patientSearch.length >= 2) {
@@ -163,7 +162,6 @@ export default function MedicalHistoryPage() {
           const results = await buscarPacientePorCampo("nombreCompleto", "like", patientSearch);
           setPatientSearchResults(results?.records || []);
         } catch (err) {
-          console.error("Error al buscar pacientes:", err);
           setPatientSearchResults([]);
         } finally {
           setPatientSearchLoading(false);
@@ -176,7 +174,7 @@ export default function MedicalHistoryPage() {
     return () => clearTimeout(timeoutId);
   }, [patientSearch]);
 
-  // Cargar citas desde la API cuando se abre el modal y filtrar las que no tienen historial médico
+  
   useEffect(() => {
     const loadCitas = async () => {
       if (nuevoHistorialOpen) {
@@ -193,9 +191,8 @@ export default function MedicalHistoryPage() {
           );
           if (response.ok) {
             const data = await response.json();
-            console.log("Citas cargadas:", data);
             
-            // Filtrar citas que no tienen historial médico
+            
             const citasSinHistorial: any[] = [];
             for (const cita of data.records || []) {
               try {
@@ -204,18 +201,14 @@ export default function MedicalHistoryPage() {
                   citasSinHistorial.push(cita);
                 }
               } catch (err) {
-                console.error("Error al verificar historial de cita:", cita.id, err);
-                // Si hay error, asumimos que no tiene historial
+                
                 citasSinHistorial.push(cita);
               }
             }
-            
-            console.log("Citas sin historial:", citasSinHistorial);
             setCitasDisponibles(citasSinHistorial);
             setCitasFiltradas(citasSinHistorial);
           }
         } catch (err) {
-          console.error("Error al cargar citas:", err);
         } finally {
           setCargandoCitas(false);
         }
@@ -224,7 +217,7 @@ export default function MedicalHistoryPage() {
     loadCitas();
   }, [nuevoHistorialOpen]);
 
-  // Cargar count total de historial médico desde la API
+  
   useEffect(() => {
     const loadTotalCount = async () => {
       try {
@@ -232,13 +225,12 @@ export default function MedicalHistoryPage() {
         const countValue = result.count !== undefined ? result.count : 0;
         setTotalHistorialCount(countValue);
       } catch (err) {
-        console.error("Error al cargar count total de historial:", err);
       }
     };
     loadTotalCount();
   }, []);
 
-  // Cargar count de pacientes con cita desde la API
+  
   useEffect(() => {
     const loadPacientesConCita = async () => {
       try {
@@ -246,53 +238,47 @@ export default function MedicalHistoryPage() {
         setPacientesConCitaCount(result.count || 0);
         setPacientesConHistorial(result.pacientes || []);
       } catch (err) {
-        console.error("Error al cargar count de pacientes con cita:", err);
       }
     };
     loadPacientesConCita();
   }, []);
 
-  // Cargar count de diagnósticos únicos desde la API
+  
   useEffect(() => {
     const loadDiagnosticosUnicos = async () => {
       try {
         const result = await contarDiagnosticosUnicos();
         setDiagnosticosUnicosCount(result.count || 0);
       } catch (err) {
-        console.error("Error al cargar count de diagnósticos únicos:", err);
       }
     };
     loadDiagnosticosUnicos();
   }, []);
 
-  // Cargar count de citas del mes actual desde la API
+  
   useEffect(() => {
     const loadCitasEsteMes = async () => {
       try {
         const result = await contarCitasEsteMes();
         setCitasEsteMesCount(result.count || 0);
       } catch (err) {
-        console.error("Error al cargar count de citas del mes:", err);
       }
     };
     loadCitasEsteMes();
   }, []);
 
-  // Cargar datos del paciente desde la API cuando se abre el expediente
+  
   useEffect(() => {
     const loadExpedientePaciente = async () => {
       if (detailPanel?.type === "expediente" && detailPanel.patientId) {
         setLoadingExpediente(true);
         try {
           const pacienteId = parseInt(detailPanel.patientId);
-          console.log("Cargando paciente con ID:", pacienteId);
           const paciente = await obtenerPaciente(pacienteId);
-          console.log("Paciente cargado:", paciente);
           setExpedientePacienteAPI(paciente);
           
-          // Obtener historial por cada cita del paciente
+          
           const citas = paciente.fields?.citas || [];
-          console.log("Citas del paciente:", citas);
           
           const registrosHistorial: any[] = [];
           for (const cita of citas) {
@@ -301,12 +287,10 @@ export default function MedicalHistoryPage() {
             const fechaCita = fechaCitasCompleta.split(' - ')[0] || "—";
             const horaCita = fechaCitasCompleta.split(' - ')[1] || "";
             const fechaHoraCita = horaCita ? `${fechaCita} ${horaCita}` : fechaCita;
-            console.log("Cargando historial para cita ID:", citaId, "fecha:", fechaHoraCita);
             try {
               const historial = await historialPorCita(citaId);
-              console.log("Historial de cita:", citaId, historial);
               if (historial.records && historial.records.length > 0) {
-                // Agregar fechaCita y horaCita a cada registro de historial
+                
                 const registrosConFecha = historial.records.map((reg: any) => ({
                   ...reg,
                   fields: {
@@ -318,7 +302,7 @@ export default function MedicalHistoryPage() {
                 }));
                 registrosHistorial.push(...registrosConFecha);
               } else {
-                // Si la cita no tiene historial, agregar un registro vacío
+                
                 registrosHistorial.push({
                   id: `cita-${citaId}`,
                   fields: {
@@ -335,8 +319,7 @@ export default function MedicalHistoryPage() {
                 });
               }
             } catch (err) {
-              console.error("Error al cargar historial de cita:", citaId, err);
-              // Agregar registro vacío en caso de error
+              
               registrosHistorial.push({
                 id: `cita-error-${citaId}`,
                 fields: {
@@ -353,11 +336,8 @@ export default function MedicalHistoryPage() {
               });
             }
           }
-          
-          console.log("Registros de historial:", registrosHistorial);
           setExpedienteRegistrosAPI(registrosHistorial);
         } catch (err) {
-          console.error("Error al cargar paciente del expediente:", err);
           setExpedientePacienteAPI(null);
           setExpedienteRegistrosAPI([]);
         } finally {
@@ -441,13 +421,13 @@ export default function MedicalHistoryPage() {
     ];
   }, [historyStats, records, clinicToday, totalHistorialCount, pacientesConCitaCount, diagnosticosUnicosCount, citasEsteMesCount, pacientesConHistorial]);
 
-  // Animated values for metrics
+  
   const animatedTotalRecords = useCountUp(indicatorCards[0]?.value || 0, 800);
   const animatedPacientesConHistorial = useCountUp(indicatorCards[1]?.value || 0, 800);
   const animatedDiagnosticosUnicos = useCountUp(indicatorCards[2]?.value || 0, 800);
   const animatedCitasEsteMes = useCountUp(indicatorCards[3]?.value || 0, 800);
 
-  // Group records by patient
+  
   const patientGroups = useMemo(() => {
     const groups: Record<string, { patient: typeof patients[0] | undefined; records: MedicalRecord[] }> = {};
     records.forEach((r) => {
@@ -459,12 +439,12 @@ export default function MedicalHistoryPage() {
       }
       groups[r.patientId].records.push(r);
     });
-    // Sort records within each group by date descending
+    
     Object.values(groups).forEach((g) => g.records.sort((a, b) => b.date.localeCompare(a.date)));
     return groups;
   }, [records]);
 
-  /** Fichas que coinciden con búsqueda y filtro por paciente (solo para el resumen numérico) */
+  
   const filteredRecordsCount = useMemo(() => {
     const q = search.trim().toLowerCase();
     const searchMatch = (r: MedicalRecord) => {
@@ -485,13 +465,10 @@ export default function MedicalHistoryPage() {
   const expedienteRecords = expedienteGroup?.records ?? [];
   const expedientePatient = expedienteGroup?.patient;
 
-  // Si no hay datos locales (paciente de API), usar datos de ejemplo
-  const showExpedienteExample = detailPanel?.type === "expediente" && !expedientePatient;
-  console.log("detailPanel:", detailPanel);
-  console.log("expedientePatient:", expedientePatient);
-  console.log("showExpedienteExample:", showExpedienteExample);
   
-  // Datos de ejemplo siempre disponibles
+  const showExpedienteExample = detailPanel?.type === "expediente" && !expedientePatient;
+  
+  
   const examplePatient = {
     name: pacientesConHistorial.find((p: any) => p.id.toString() === detailPanel?.patientId)?.nombre || "Paciente Ejemplo",
     dni: "12345678",
@@ -500,7 +477,7 @@ export default function MedicalHistoryPage() {
     status: "activo"
   };
 
-  // Datos del paciente de la API
+  
   const pacienteData = expedientePacienteAPI?.fields || {};
   const pacienteNombre = pacienteData.nombreCompleto || examplePatient.name;
   const pacienteFoto = (Array.isArray(pacienteData.fotoPacientes) && pacienteData.fotoPacientes.length > 0) 
@@ -511,7 +488,7 @@ export default function MedicalHistoryPage() {
   const pacienteEstado = pacienteData.Estado || examplePatient.status;
   const pacienteCitas = pacienteData.citas?.length || 0;
   
-  // Extraer fecha y hora de la última cita (ordenando por fecha)
+  
   const citasOrdenadas = pacienteData.citas && pacienteData.citas.length > 0 
     ? [...pacienteData.citas].sort((a: any, b: any) => {
         const fechaA = a.fields?.fechaCitas || "";
@@ -524,9 +501,9 @@ export default function MedicalHistoryPage() {
     : null;
   const ultimaAtencion = ultimaCita ? ultimaCita.split(' - ')[0] : "—";
   
-  // Mapear registros de la API al formato de la línea de tiempo
+  
   const registrosTimeline = expedienteRegistrosAPI.map((reg: any) => {
-    // Extraer imagen del historial médico
+    
     const imagen = reg.fields?.imagenPodologica;
     const imagenUrl = (Array.isArray(imagen) && imagen.length > 0) 
       ? (imagen[0].signedUrl || imagen[0].url) 
@@ -582,7 +559,7 @@ export default function MedicalHistoryPage() {
     }
   ];
 
-  // Estado de carga inicial
+  
   const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
@@ -590,7 +567,7 @@ export default function MedicalHistoryPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Mostrar indicador de carga inicial
+  
   if (pageLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1205,10 +1182,6 @@ export default function MedicalHistoryPage() {
                           size="sm"
                           className="h-9 flex-1 rounded-none text-xs font-medium text-primary hover:bg-primary/10"
                           onClick={() => {
-                            console.log("Clic en Expediente - Paciente:", paciente);
-                            console.log("ID del paciente:", paciente.id);
-                            console.log("Nombre del paciente:", paciente.nombre);
-                            console.log("Cantidad de expedientes:", paciente.expedientes);
                             if (paciente.expedientes === 0) {
                               toast.error("Este paciente no tiene expedientes. Por favor, agrega una cita en las visitas agendadas primero.");
                             } else {
