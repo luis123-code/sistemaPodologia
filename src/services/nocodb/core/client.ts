@@ -3,7 +3,7 @@
 export const BASE_URL = import.meta.env.VITE_NOCODB_URL || "https://app.nocodb.com";
 const TOKEN = import.meta.env.VITE_NOCODB_TOKEN;
 export const PROJECT_ID = import.meta.env.VITE_NOCODB_PROJECT_ID || "p96bi1rx1mkbyoa";
-
+import { requireAuthToken } from "@/lib/auth";
 
 const MIN_REQUEST_INTERVAL_MS = 250; 
 const MAX_RETRIES = 3;
@@ -62,6 +62,7 @@ export async function fetchWithThrottle(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
+  requireAuthToken();
   return requestQueue.enqueue(async () => {
     let attempt = 0;
 

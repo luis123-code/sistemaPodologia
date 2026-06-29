@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { contarCitasPorRutaDia, obtenerCitasPorRutaDia, obtenerCitasDomicilioHoy, actualizarRutaDia } from "@/services/nocodb/citas.service";
 import { obtenerPaciente } from "@/services/nocodb/pacientes.service";
+import { requireAuthToken } from "@/lib/auth";
 
 const statusLabel: Record<WaitingTicket["status"], string> = {
   programado: "Programada",
@@ -29,6 +30,7 @@ const statusLabel: Record<WaitingTicket["status"], string> = {
 const statusOrder: WaitingTicket["status"][] = ["programado", "en_ruta", "en_domicilio", "finalizado"];
 
 async function geocodificarDireccion(direccion: string): Promise<{ lat: number; lng: number } | null> {
+  requireAuthToken();
   try {
     const q = encodeURIComponent(`${direccion}, Lima, Peru`);
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
@@ -138,6 +140,7 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
   }
 
   async function fetchOsrmRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
+    requireAuthToken();
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&alternatives=true`;
       const res = await fetch(url);

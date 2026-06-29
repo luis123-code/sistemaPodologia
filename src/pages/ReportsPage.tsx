@@ -28,6 +28,7 @@ import { obtenerPacientesRegistrados } from "@/services/nocodb/pacientes.service
 import { obtenerCitasResumen, contarCitasPorPaciente } from "@/services/nocodb/citas.service";
 import { obtenerHistorialResumen } from "@/services/nocodb/historialMedico.service";
 import { obtenerFacturacionResumen } from "@/services/nocodb/facturacion.service";
+import { requireAuthToken } from "@/lib/auth";
 import { AreaChartShadcn } from "@/components/charts/AreaChartShadcn";
 import {
   ChartContainer,
@@ -251,6 +252,7 @@ export default function ReportsPage() {
 
   
   async function geocodeAddress(address: string): Promise<{ lng: number; lat: number } | null> {
+    requireAuthToken();
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ", Lima, Peru")}&limit=1`,

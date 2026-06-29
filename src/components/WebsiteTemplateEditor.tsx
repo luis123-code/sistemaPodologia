@@ -8,6 +8,7 @@ import {
   Type,
   RotateCcw,
   Loader2,
+  Camera,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,11 +100,11 @@ export function WebsiteTemplateEditor() {
                 afterImage: c.despues || "",
               })) || base.beforeAfter,
               galleryImages: Array.isArray(infoWeb.galeria) ? infoWeb.galeria.map((g: any) => g || "") : base.galleryImages,
+              professionalPhotoUrl: infoWeb.fotoProfesional || base.professionalPhotoUrl,
             });
           }
         }
       } catch {
-        // Si falla, dejar el estado por defecto (localStorage)
       } finally {
         if (!cancelled) setInitialLoading(false);
       }
@@ -139,8 +140,8 @@ export function WebsiteTemplateEditor() {
       const uploadedGallery = await Promise.all(
         settings.galleryImages.map((img) => uploadIfNeeded(img))
       );
+      const uploadedProfessionalPhoto = await uploadIfNeeded(settings.professionalPhotoUrl);
 
-      
       const plantillaData = {
         titulosSubtitulos: (settings.heroTitles || []).map((ht) => ({
           titulo: ht.titulo,
@@ -157,13 +158,14 @@ export function WebsiteTemplateEditor() {
           antes: ba.beforeImage || null,
           despues: ba.afterImage || null,
         })),
+        fotoProfesional: uploadedProfessionalPhoto || null,
       };
 
-      
       setSettings((prev) => ({
         ...prev,
         beforeAfter: uploadedBeforeAfter,
         galleryImages: uploadedGallery,
+        professionalPhotoUrl: uploadedProfessionalPhoto,
       }));
 
       const resultado = await crearPlantilla(plantillaData as any);
@@ -233,13 +235,29 @@ export function WebsiteTemplateEditor() {
           afterImage: c.despues || ""
         })) || settings.beforeAfter,
         galleryImages: Array.isArray(infoWeb.galeria) ? infoWeb.galeria.map((g: any) => g || "") : settings.galleryImages,
+        professionalPhotoUrl: infoWeb.fotoProfesional || settings.professionalPhotoUrl,
       };
-      
+
       setSettings(newSettings);
       toast.success(`Plantilla "${ultimaPlantilla.fields?.Title || 'Sin título'}" cargada desde NocoDB`);
       
     } catch (error) {
       toast.error("Error al cargar la plantilla desde NocoDB");
+    }
+  };
+
+  const onProfessionalPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Selecciona un archivo de imagen");
+      return;
+    }
+    try {
+      const url = await readFileAsDataUrl(file);
+      persist({ ...settings, professionalPhotoUrl: url });
+    } catch {
+      toast.error("No se pudo leer la imagen");
     }
   };
 
@@ -386,7 +404,7 @@ export function WebsiteTemplateEditor() {
             </CardTitle>
             <CardDescription>
               Personaliza textos, tipografía, imágenes, servicios visibles, casos antes/después y el teléfono de
-              contacto. Los datos se guardan solo en este navegador (demo).
+              contacto. Los datos se guardan en NocoDB.
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -499,6 +517,64 @@ export function WebsiteTemplateEditor() {
                   placeholder="+34 600 000 000"
                   inputMode="tel"
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="card-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Camera className="h-4 w-4 text-primary" />
+                  Foto profesional
+                </CardTitle>
+                <CardDescription>Sube una foto de la clínica o del profesional para la web.</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div
+                  className="relative flex h-40 w-40 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/80 bg-muted/20"
+                >
+                  {settings.professionalPhotoUrl ? (
+                    <img
+                      src={settings.professionalPhotoUrl}
+                      alt="Foto profesional"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Sin imagen</span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <input
+                    id="wt-professional-photo"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onProfessionalPhoto}
+                  />
+                  <Label htmlFor="wt-professional-photo" className="cursor-pointer">
+                    <Button type="button" variant="secondary" size="sm" className="gap-1" asChild>
+                      <span>
+                        <Plus className="h-4 w-4" />
+                        {settings.professionalPhotoUrl ? "Cambiar foto" : "Subir foto"}
+                      </span>
+                    </Button>
+                  </Label>
+                  {settings.professionalPhotoUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive justify-start px-2"
+                      onClick={() => persist({ ...settings, professionalPhotoUrl: "" })}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Eliminar
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -714,7 +790,7 @@ export function WebsiteTemplateEditor() {
           <Card className="card-shadow overflow-hidden">
             <CardHeader className="border-b bg-gradient-to-br from-primary/10 to-transparent py-3">
               <CardTitle className="text-sm font-semibold">Vista previa</CardTitle>
-              <CardDescription className="text-xs">Así podría verse tu cabecera pública (demo).</CardDescription>
+              <CardDescription className="text-xs">Así podría verse tu cabecera pública.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div

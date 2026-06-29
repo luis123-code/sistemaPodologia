@@ -105,7 +105,6 @@ export function WebsiteTemplateEditor() {
           }
         }
       } catch {
-        // Si falla, dejar el estado por defecto (localStorage)
       } finally {
         if (!cancelled) setInitialLoading(false);
       }
