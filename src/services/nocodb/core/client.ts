@@ -5,7 +5,7 @@ const TOKEN = import.meta.env.VITE_NOCODB_TOKEN;
 export const PROJECT_ID = import.meta.env.VITE_NOCODB_PROJECT_ID || "p96bi1rx1mkbyoa";
 import { requireAuthToken } from "@/lib/auth";
 
-const MIN_REQUEST_INTERVAL_MS = 250; 
+const MIN_REQUEST_INTERVAL_MS = 100; 
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 1000;
 
