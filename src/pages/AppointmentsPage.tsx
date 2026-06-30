@@ -136,6 +136,7 @@ export default function AppointmentsPage() {
     fecha: "",
     horaCita: "",
     progreso: "Confirmada",
+    estadoCalendario: "registrado",
     tipoPaciente: "",
     calificacion: 0,
     tipoProcedimientoCita: [] as string[],
@@ -303,12 +304,13 @@ export default function AppointmentsPage() {
           horaCita: f.horaCita,
           fecha: f.fecha,
           progreso: f.progreso,
+          estadoCalendario: f.estadoCalendario || "registrado",
           calificacion: f.calificacion,
           tipoPaciente: f.tipoPaciente,
           tipoProcedimientoCita: f.tipoProcedimientoCita,
           historialMedico: f.historialMedico,
           pacientes: f.pacientes,
-        } as Appointment;
+        } as Appointment & { estadoCalendario?: string };
       });
       setAppointments(converted);
       setOriginalAppointments(converted);
@@ -405,7 +407,8 @@ export default function AppointmentsPage() {
     });
   }, [appointments, statusFilter, calendarSearch]);
 
-  const openEditVisit = (a: Appointment) => {
+  const openEditVisit = (a: Appointment & { estadoCalendario?: string }) => {
+    console.log("Estado calendario de la fila:", a.estadoCalendario);
     setEditForm({ ...a });
     
     if (a.pacientes) {
@@ -477,7 +480,7 @@ export default function AppointmentsPage() {
         horaCita: editForm.time,
         fecha: editForm.date,
         progreso: editForm.progreso,
-        estadoCalendario: "registrado",
+        estadoCalendario: (editForm as any).estadoCalendario === "eliminar" ? "registrado" : (editForm as any).estadoCalendario === "actualizar" ? "reseteado" : "actualizar",
         calificacion: editForm.calificacion,
         tipoPaciente: editForm.tipoPaciente,
         tipoProcedimientoCita: editForm.tipoProcedimientoCita || []
@@ -741,6 +744,28 @@ export default function AppointmentsPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <Label className="text-[11px] text-gray-500 font-medium">Estado calendario</Label>
+                    <Select
+                      value={newVisitForm.estadoCalendario || "registrado"}
+                      onValueChange={(v) => setNewVisitForm({ ...newVisitForm, estadoCalendario: v })}
+                    >
+                      <SelectTrigger
+                        className="w-full text-sm"
+                        style={{
+                          backgroundColor: '#f5fffe',
+                          border: 'none',
+                          borderRadius: '8px',
+                          boxShadow: 'none'
+                        }}
+                      >
+                        <SelectValue placeholder="Registrado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="registrado">Registrado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -795,7 +820,7 @@ export default function AppointmentsPage() {
                         horaCita: newVisitForm.horaCita,
                         fecha: newVisitForm.fecha,
                         progreso: newVisitForm.progreso,
-                        estadoCalendario: "registrado",
+                        estadoCalendario: newVisitForm.estadoCalendario,
                         calificacion: newVisitForm.calificacion,
                         tipoPaciente: newVisitForm.tipoPaciente,
                         tipoProcedimientoCita: newVisitForm.tipoProcedimientoCita,
@@ -808,6 +833,7 @@ export default function AppointmentsPage() {
                         fecha: "",
                         horaCita: "",
                         progreso: "Confirmada",
+                        estadoCalendario: "registrado",
                         tipoPaciente: "",
                         calificacion: 0,
                         tipoProcedimientoCita: [],
@@ -1560,6 +1586,51 @@ export default function AppointmentsPage() {
                           <SelectItem value="Programado">Programado</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[11px] text-gray-500 font-medium">Estado calendario</Label>
+                      {(editForm as any).estadoCalendario === "eliminar" ? (
+                        <Select
+                          value="registrado"
+                          onValueChange={(v) => setEditForm((f) => (f ? { ...f, estadoCalendario: v } as any : f))}
+                        >
+                          <SelectTrigger
+                            className="w-full text-sm"
+                            style={{
+                              backgroundColor: '#f5fffe',
+                              border: 'none',
+                              borderRadius: '8px',
+                              boxShadow: 'none'
+                            }}
+                          >
+                            <SelectValue placeholder="Registrar de nuevo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="registrado">Registrar de nuevo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Select
+                          value={(editForm as any).estadoCalendario === "registrado" || !(editForm as any).estadoCalendario ? "actualizar" : (editForm as any).estadoCalendario}
+                          onValueChange={(v) => setEditForm((f) => (f ? { ...f, estadoCalendario: v } as any : f))}
+                        >
+                          <SelectTrigger
+                            className="w-full text-sm"
+                            style={{
+                              backgroundColor: '#f5fffe',
+                              border: 'none',
+                              borderRadius: '8px',
+                              boxShadow: 'none'
+                            }}
+                          >
+                            <SelectValue placeholder="Actualizar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="actualizar">Actualizar</SelectItem>
+                            <SelectItem value="eliminar">Eliminar</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   </div>
                 </div>

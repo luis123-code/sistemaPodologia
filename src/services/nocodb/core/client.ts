@@ -7,12 +7,20 @@ import { requireAuthToken } from "@/lib/auth";
 
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 1000;
+const MIN_REQUEST_INTERVAL_MS = 100;
+let lastRequestTime = 0;
 
 export async function fetchWithThrottle(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
   requireAuthToken();
+  const now = Date.now();
+  const elapsed = now - lastRequestTime;
+  if (elapsed < MIN_REQUEST_INTERVAL_MS) {
+    await new Promise((r) => setTimeout(r, MIN_REQUEST_INTERVAL_MS - elapsed));
+  }
+  lastRequestTime = Date.now();
   let attempt = 0;
 
   while (true) {

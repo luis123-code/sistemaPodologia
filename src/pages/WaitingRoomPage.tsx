@@ -274,16 +274,25 @@ function PacienteMapDialog({ patientName, address, open }: { patientName: string
         toast.success("Ubicación obtenida correctamente");
       },
       (err) => {
-        handleError(err);
         
-        if (err.code === 1 || err.code === 3) {
-          setPermStatus("denied");
-          toast.error("El navegador bloqueó la ubicación. Sigue las instrucciones del banner amarillo arriba del mapa para activarla.", {
-            duration: 10000,
-          });
-        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            handlePosition(pos);
+            toast.success("Ubicación obtenida correctamente");
+          },
+          (err2) => {
+            handleError(err2);
+            if (err2.code === 1 || err2.code === 3) {
+              setPermStatus("denied");
+              toast.error("El navegador bloqueó la ubicación. Sigue las instrucciones del banner amarillo arriba del mapa para activarla.", {
+                duration: 10000,
+              });
+            }
+          },
+          { enableHighAccuracy: false, timeout: 20000 }
+        );
       },
-      { enableHighAccuracy: false, timeout: 4000 }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 

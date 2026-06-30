@@ -117,7 +117,7 @@ export default function PatientsPage() {
     horaCita: "",
     fecha: "",
     progreso: "Confirmada",
-    estadoCalendario: "nuevo",
+    estadoCalendario: "registrado",
     tokenCalendario: "",
     calificacion: 5,
     tipoPaciente: "",
@@ -369,7 +369,7 @@ export default function PatientsPage() {
       horaCita: "",
       fecha: new Date().toISOString().split('T')[0],
       progreso: "Confirmada",
-      estadoCalendario: "nuevo",
+      estadoCalendario: "registrado",
       tokenCalendario: "",
       calificacion: 5,
       tipoPaciente: "",
@@ -477,25 +477,33 @@ export default function PatientsPage() {
     setSaving(true);
     try {
       const patientNocoId = (editPatient as any)?.nocodbId || parseInt(editPatient.id, 10);
-      const pacienteData = {
-        id: patientNocoId,
-        fields: {
-          nombreCompleto: editPatient.name,
-          telefono: editPatient.phone,
-          correoElectronico: editPatient.email,
-          Edad: editPatient.age || 0,
-          genero: editPatient.genero ? editPatient.genero.charAt(0).toUpperCase() + editPatient.genero.slice(1).toLowerCase() : "",
-          Dirección: editPatient.address,
-          EnlaceGoogle: editPatient.ubicacion || "",
-          Estado: editPatient.status || "registrado",
-          Wasap: editPatient.phone ? `https://wa.me/${editPatient.phone.replace(/\s+/g, '')}` : "",
-        },
+      const fields: any = {
+        nombreCompleto: editPatient.name,
+        telefono: editPatient.phone,
+        correoElectronico: editPatient.email,
+        Edad: editPatient.age || 0,
+        genero: editPatient.genero ? editPatient.genero.charAt(0).toUpperCase() + editPatient.genero.slice(1).toLowerCase() : "",
+        Dirección: editPatient.address,
+        EnlaceGoogle: editPatient.ubicacion || "",
+        Estado: editPatient.status || "registrado",
+        Wasap: editPatient.phone ? `https://wa.me/${editPatient.phone.replace(/\s+/g, '')}` : "",
       };
-      
-      await actualizarPacienteV3(editPatient.id, pacienteData);
+      if (fotoPreviewEdit) {
+        fields.fotoPacientes = [
+          {
+            url: fotoPreviewEdit,
+            title: "foto_paciente.jpg",
+            mimetype: "image/jpeg",
+            size: 0,
+          },
+        ];
+      }
+
+      await actualizarPacienteV3(patientNocoId, fields);
       toast.success("Paciente actualizado correctamente");
       setEditOpen(false);
       setEditPatient(null);
+      setFotoPreviewEdit(null);
       recargar();
     } catch (err) {
       toast.error("Error al actualizar paciente: " + (err instanceof Error ? err.message : "Error desconocido"));
@@ -1327,8 +1335,8 @@ export default function PatientsPage() {
                           <SelectValue placeholder="Seleccionar" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="masculino">Masculino</SelectItem>
-                          <SelectItem value="femenino">Femenino</SelectItem>
+                          <SelectItem value="Masculino">Masculino</SelectItem>
+                          <SelectItem value="Femenino">Femenino</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1482,9 +1490,19 @@ export default function PatientsPage() {
                   className="text-sm h-9 text-white gap-1.5"
                   style={{ backgroundColor: '#22b4ad' }}
                   onClick={saveEditPatient}
+                  disabled={saving}
                 >
-                  <Check className="h-4 w-4" />
-                  Guardar cambios
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Guardar cambios
+                    </>
+                  )}
                 </Button>
               </div>
             </>
@@ -1751,7 +1769,7 @@ export default function PatientsPage() {
                 <div className="space-y-2">
                   <Label className="text-[11px] text-gray-500 font-medium">Estado calendario</Label>
                   <Select
-                    value={nuevaCita.estadoCalendario}
+                    value={nuevaCita.estadoCalendario || "registrado"}
                     onValueChange={(v) => setNuevaCita({ ...nuevaCita, estadoCalendario: v })}
                   >
                     <SelectTrigger
@@ -1763,13 +1781,10 @@ export default function PatientsPage() {
                         boxShadow: 'none'
                       }}
                     >
-                      <SelectValue />
+                      <SelectValue placeholder="Registrado" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="nuevo">Nuevo</SelectItem>
                       <SelectItem value="registrado">Registrado</SelectItem>
-                      <SelectItem value="actualizar">Actualizar</SelectItem>
-                      <SelectItem value="eliminar">Eliminar</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

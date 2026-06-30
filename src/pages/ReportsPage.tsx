@@ -52,22 +52,7 @@ import {
   Tooltip as RechartsTooltip,
   Legend as RechartsLegend,
 } from "recharts";
-import {
-  appointments,
-  invoices,
-  medicalRecords,
-  monthlyStats,
-  patients,
-  weeklyHomeVisits,
-} from "@/data/mockData";
 import { formatSoles } from "@/lib/currency";
-import { SparklineAreaAnimated } from "@/components/charts/SparklineAreaAnimated";
-import {
-  cumulativeAppointmentsByDate,
-  cumulativeInvoiceAmountByDate,
-  cumulativeMedicalRecordsByDate,
-  cumulativePatientsByRegistration,
-} from "@/lib/metricSparklineSeries";
 
 const MONTH_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -403,99 +388,29 @@ export default function ReportsPage() {
   }, []);
 
   const {
-    kpi,
     visitStatusRows,
     revenueByMonth,
     clinicalByMonth,
-    cancelRate,
-    tasaCierre,
-    sparkVisitas,
-    sparkPacientes,
-    sparkFichas,
-    sparkFacturacion,
   } = useMemo(() => {
-    const pend = appointments.filter((a) => a.status === "pendiente").length;
-    const atend = appointments.filter((a) => a.status === "atendido").length;
-    const canc = appointments.filter((a) => a.status === "cancelado").length;
-    const n = appointments.length || 1;
-
-    const totalFacturado = invoices.reduce((s, i) => s + i.amountPen, 0);
-    const pendienteCobro = invoices.filter((i) => i.status === "Pendiente" || i.status === "Parcial").reduce((s, i) => s + i.amountPen, 0);
-
-    
-    const visitStatusRowsInner: Record<string, string|number>[] = citasCount > 0 ? [
+    const visitStatusRowsInner: Record<string, string|number>[] = [
       { estado: "Confirmada", cantidad: citasConfirmadas },
       { estado: "Pendiente", cantidad: citasPendientes },
       { estado: "Cancelada", cantidad: citasCanceladas },
       { estado: "Descontinuado", cantidad: citasDescontinuadas },
-    ] : [
-      { estado: "Pendiente", cantidad: pend },
-      { estado: "Atendido", cantidad: atend },
-      { estado: "Cancelado", cantidad: canc },
     ];
 
-    
-    let revenueByMonthInner: Record<string, string|number>[];
-    if (revenueByMonthAPI.length > 0) {
-      revenueByMonthInner = revenueByMonthAPI;
-    } else {
-      const revenueMap = new Map<string, number>();
-      for (const inv of invoices) {
-        const k = ymKey(inv.date);
-        revenueMap.set(k, (revenueMap.get(k) ?? 0) + inv.amountPen);
-      }
-      const revenueKeys = [...revenueMap.keys()].sort();
-      revenueByMonthInner = revenueKeys.map((k) => ({
-        periodo: labelForYm(k),
-        soles: Math.round(revenueMap.get(k) ?? 0),
-      }));
-    }
-
-    
-    let clinicalByMonthInner: Record<string, string|number>[];
-    if (fichasPorMesAPI.length > 0) {
-      clinicalByMonthInner = fichasPorMesAPI;
-    } else {
-      const clinMap = new Map<string, number>();
-      for (const r of medicalRecords) {
-        const k = ymKey(r.date);
-        clinMap.set(k, (clinMap.get(k) ?? 0) + 1);
-      }
-      const clinKeys = [...clinMap.keys()].sort();
-      clinicalByMonthInner = clinKeys.map((k) => ({
-        periodo: labelForYm(k),
-        fichas: clinMap.get(k) ?? 0,
-      }));
-    }
-
     return {
-      kpi: {
-        visitas: citasCount || appointments.length,
-        pacientes: pacientesRegistradosCount || patients.length,
-        fichas: historialCount || medicalRecords.length,
-        facturacion: facturacionTotal || totalFacturado,
-        pendiente: facturacionPendiente || pendienteCobro,
-        activosPct: Math.round((patients.filter((p) => p.status === "activo").length / (patients.length || 1)) * 100),
-        tasaCierre: Math.round((atend / n) * 100),
-        cancelRate: Math.round((canc / n) * 100),
-      },
       visitStatusRows: visitStatusRowsInner,
-      revenueByMonth: revenueByMonthInner,
-      clinicalByMonth: clinicalByMonthInner,
-      cancelRate: Math.round((canc / n) * 100),
-      tasaCierre: Math.round((atend / n) * 100),
-      sparkVisitas: cumulativeAppointmentsByDate(appointments),
-      sparkPacientes: cumulativePatientsByRegistration(patients),
-      sparkFichas: cumulativeMedicalRecordsByDate(medicalRecords),
-      sparkFacturacion: cumulativeInvoiceAmountByDate(invoices),
+      revenueByMonth: revenueByMonthAPI,
+      clinicalByMonth: fichasPorMesAPI,
     };
-  }, [pacientesRegistradosCount, pacientesActivos, pacientesInactivos, pacientesPorMesAPI, citasCount, citasConfirmadas, citasPendientes, citasCanceladas, citasDescontinuadas, tasaCumplimientoAPI, historialCount, diagnosticosUnicos, fichasPorMesAPI, facturacionTotal, facturacionPendiente, facturacionCobrada, revenueByMonthAPI]);
+  }, [citasConfirmadas, citasPendientes, citasCanceladas, citasDescontinuadas, fichasPorMesAPI, revenueByMonthAPI]);
 
   
-  const animVisitas = useAnimatedNumber(citasCount || kpi.visitas, 1200);
-  const animPacientes = useAnimatedNumber(pacientesRegistradosCount || kpi.pacientes, 1200);
-  const animFichas = useAnimatedNumber(historialCount || kpi.fichas, 1200);
-  const animFacturacion = useAnimatedNumber(facturacionTotal || kpi.facturacion, 1200);
+  const animVisitas = useAnimatedNumber(citasCount, 1200);
+  const animPacientes = useAnimatedNumber(pacientesRegistradosCount, 1200);
+  const animFichas = useAnimatedNumber(historialCount, 1200);
+  const animFacturacion = useAnimatedNumber(facturacionTotal, 1200);
 
   
   if (loading) {
@@ -544,12 +459,6 @@ export default function ReportsPage() {
               </p>
               <p className="text-[10px] text-muted-foreground/90 mt-1.5">Tendencia: acumulado por fecha de visita · Datos en tiempo real</p>
             </div>
-            <SparklineAreaAnimated
-              values={sparkVisitas}
-              delayMs={0}
-              color="hsl(217,91%,60%)"
-              className="shrink-0 self-center"
-            />
           </CardContent>
         </Card>
         <Card className="card-shadow border-primary/10">
@@ -572,12 +481,6 @@ export default function ReportsPage() {
               </p>
               <p className="text-[10px] text-muted-foreground/90 mt-1.5">Tendencia: altas por fecha de registro · Datos en tiempo real</p>
             </div>
-            <SparklineAreaAnimated
-              values={sparkPacientes}
-              delayMs={85}
-              color="hsl(213,94%,68%)"
-              className="shrink-0 self-center"
-            />
           </CardContent>
         </Card>
         <Card className="card-shadow border-primary/10">
@@ -600,12 +503,6 @@ export default function ReportsPage() {
               </p>
               <p className="text-[10px] text-muted-foreground/90 mt-1.5">Tendencia: acumulado por fecha de ficha · Datos en tiempo real</p>
             </div>
-            <SparklineAreaAnimated
-              values={sparkFichas}
-              delayMs={170}
-              color="hsl(217,91%,60%)"
-              className="shrink-0 self-center"
-            />
           </CardContent>
         </Card>
         <Card className="card-shadow border-primary/10">
@@ -623,17 +520,11 @@ export default function ReportsPage() {
                 {facturacionError ? (
                   <span className="text-destructive">{facturacionError}</span>
                 ) : (
-                  <>Pendiente: <span className="font-medium text-warning">{formatSoles(facturacionPendiente || kpi.pendiente)}</span> · Cobrado: <span className="font-medium text-success">{formatSoles(facturacionCobrada)}</span></>
+                  <>Pendiente: <span className="font-medium text-warning">{formatSoles(facturacionPendiente)}</span> · Cobrado: <span className="font-medium text-success">{formatSoles(facturacionCobrada)}</span></>
                 )}
               </p>
               <p className="text-[10px] text-muted-foreground/90 mt-1.5">Tendencia: acumulado por fecha de factura · Datos en tiempo real</p>
             </div>
-            <SparklineAreaAnimated
-              values={sparkFacturacion}
-              delayMs={255}
-              color="hsl(212,95%,68%)"
-              className="shrink-0 self-center"
-            />
           </CardContent>
         </Card>
       </div>
@@ -713,9 +604,9 @@ export default function ReportsPage() {
                 config={patronSemanalConfig}
                 className="aspect-auto h-[250px] w-full"
               >
-                <BarChart data={(patronSemanal.length > 0 ? patronSemanal : weeklyHomeVisits) as any[]} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+                <BarChart data={patronSemanal as any[]} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
                   <XAxis
-                    dataKey={patronSemanal.length > 0 ? "dia" : "day"}
+                    dataKey="dia"
                     tick={{ fontSize: 11, fill: "hsl(215 12% 46%)" }}
                     axisLine={false}
                     tickLine={false}
@@ -918,7 +809,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent className="px-2 pt-0 sm:px-6">
               {(() => {
-                const rows: any[] = pacientesPorMesAPI.length > 0 ? pacientesPorMesAPI : monthlyStats;
+                const rows: any[] = pacientesPorMesAPI;
                 const totalNuevos = rows.reduce((sum: number, r: any) => sum + (r.nuevos || 0), 0);
                 const promedio = rows.length > 0 ? Math.round(totalNuevos / rows.length) : 0;
                 const maxNuevos = rows.length > 0 ? Math.max(...rows.map((r: any) => r.nuevos || 0)) : 0;

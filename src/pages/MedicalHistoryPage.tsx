@@ -29,23 +29,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { medicalRecords as initialRecords, patients, clinicToday, type MedicalRecord } from "@/data/mockData";
-import { contarHistorialTotal, contarDiagnosticosUnicos, obtenerRegistrosPorPacienteAsociado, historialPorCita, crearRegistroV3 } from "@/services/nocodb/historialMedico.service";
+import { contarHistorialTotal, contarDiagnosticosUnicos, obtenerHistorialResumen, obtenerRegistrosPorPacienteAsociado, historialPorCita, crearRegistroV3, actualizarRegistro } from "@/services/nocodb/historialMedico.service";
 import { obtenerPacientesConCita, contarCitasEsteMes, crearCitaV3 } from "@/services/nocodb/citas.service";
 import { buscarPacientePorCampo, actualizarPacienteV3, obtenerPaciente, obtenerPacientesRegistrados } from "@/services/nocodb/pacientes.service";
 import { PatientSearchDropdown } from "@/components/PatientSearchDropdown";
 import { fetchWithThrottle } from "@/services/nocodb/core/client";
 import { addMonthsMonthStart, monthStartIso } from "@/lib/clinicDates";
 import { toast } from "sonner";
-import { SparklineAreaAnimated } from "@/components/charts/SparklineAreaAnimated";
-import {
-  cumulativeMedicalRecordsByDate,
-  cumulativeRecordsInMonthChronological,
-  runningUniqueDiagnosisCount,
-  runningUniquePatientCount,
-} from "@/lib/metricSparklineSeries";
-
 type DetailPanel = null | { type: "expediente"; patientId: string };
+
+type MedicalRecord = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  date: string;
+  diagnosis: string;
+  treatment: string;
+  observations: string;
+  anamnesis?: string;
+  observacionMes?: string;
+};
+
+const clinicToday = new Date().toISOString().split('T')[0];
 
 function useCountUp(end: number, duration: number = 1000) {
   const [count, setCount] = useState(0);
@@ -84,7 +89,7 @@ function useCountUp(end: number, duration: number = 1000) {
 }
 
 export default function MedicalHistoryPage() {
-  const [records, setRecords] = useState<MedicalRecord[]>(() => [...initialRecords]);
+  const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [search, setSearch] = useState("");
   const [patientFilterId, setPatientFilterId] = useState<string | null>(null);
   const [detailPanel, setDetailPanel] = useState<DetailPanel>(null);
@@ -101,6 +106,7 @@ export default function MedicalHistoryPage() {
   
   
   const [nuevoHistorialOpen, setNuevoHistorialOpen] = useState(false);
+  const [preselectedPatientId, setPreselectedPatientId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"historial" | "cita">("historial");
   const [citaSeleccionadaTexto, setCitaSeleccionadaTexto] = useState("");
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
@@ -217,53 +223,69 @@ export default function MedicalHistoryPage() {
   }, [nuevoHistorialOpen]);
 
   
+  const loadRecords = async () => {
+    try {
+      const result = await obtenerHistorialResumen();
+      const historial = result.historial || [];
+      const mapped: MedicalRecord[] = historial.map((h: any) => {
+        const cita = h.fields?.citas?.[0];
+        const paciente = cita?.fields?.pacientes?.[0]?.fields || cita?.fields?.pacienteAsociado?.[0]?.fields || {};
+        const patientName = paciente.nombreCompleto || h.fields?.pacienteNombre || "Sin paciente";
+        const patientId = paciente.id?.toString() || cita?.fields?.pacientes?.[0]?.id?.toString() || h.fields?.pacienteId?.toString() || "0";
+        const fechaStr =
+          h.fields?.fechaHoraCita ||
+          h.fields?.fechaCita ||
+          h.fields?.CreatedAt ||
+          h.fields?.createdAt ||
+          cita?.fields?.fechaCitas ||
+          "";
+        const date = fechaStr ? fechaStr.split("T")[0] : "";
+        return {
+          id: h.id?.toString() || "",
+          patientId,
+          patientName,
+          date,
+          diagnosis: h.fields?.problemas || h.fields?.diagnostico || h.fields?.diagnosticoPrincipal || "Sin diagnóstico",
+          treatment: h.fields?.tipoProcedimiento?.join(", ") || h.fields?.tratamiento || "Sin tratamiento",
+          observations: h.fields?.observacionMes || h.fields?.Anamnesis || h.fields?.observaciones || "",
+        };
+      });
+      setRecords(mapped);
+    } catch (err) {
+      setRecords([]);
+    }
+  };
+
+  const loadHistoryStats = async () => {
+    try {
+      const total = await contarHistorialTotal();
+      setTotalHistorialCount(total.count !== undefined ? total.count : 0);
+    } catch (err) {
+    }
+    try {
+      const pacientes = await obtenerPacientesConCita();
+      setPacientesConCitaCount(pacientes.count || 0);
+      setPacientesConHistorial(pacientes.pacientes || []);
+    } catch (err) {
+    }
+    try {
+      const diagnosticos = await contarDiagnosticosUnicos();
+      setDiagnosticosUnicosCount(diagnosticos.count || 0);
+    } catch (err) {
+    }
+    try {
+      const citas = await contarCitasEsteMes();
+      setCitasEsteMesCount(citas.count || 0);
+    } catch (err) {
+    }
+  };
+
   useEffect(() => {
-    const loadTotalCount = async () => {
-      try {
-        const result = await contarHistorialTotal();
-        const countValue = result.count !== undefined ? result.count : 0;
-        setTotalHistorialCount(countValue);
-      } catch (err) {
-      }
-    };
-    loadTotalCount();
+    loadRecords();
   }, []);
 
-  
   useEffect(() => {
-    const loadPacientesConCita = async () => {
-      try {
-        const result = await obtenerPacientesConCita();
-        setPacientesConCitaCount(result.count || 0);
-        setPacientesConHistorial(result.pacientes || []);
-      } catch (err) {
-      }
-    };
-    loadPacientesConCita();
-  }, []);
-
-  
-  useEffect(() => {
-    const loadDiagnosticosUnicos = async () => {
-      try {
-        const result = await contarDiagnosticosUnicos();
-        setDiagnosticosUnicosCount(result.count || 0);
-      } catch (err) {
-      }
-    };
-    loadDiagnosticosUnicos();
-  }, []);
-
-  
-  useEffect(() => {
-    const loadCitasEsteMes = async () => {
-      try {
-        const result = await contarCitasEsteMes();
-        setCitasEsteMesCount(result.count || 0);
-      } catch (err) {
-      }
-    };
-    loadCitasEsteMes();
+    loadHistoryStats();
   }, []);
 
   
@@ -355,15 +377,26 @@ export default function MedicalHistoryPage() {
     setRecordEditOpen(true);
   };
 
-  const saveRecordEdit = () => {
+  const saveRecordEdit = async () => {
     if (!editingRecord?.diagnosis?.trim()) {
       toast.error("El diagnóstico es obligatorio");
       return;
     }
-    setRecords((prev) => prev.map((x) => (x.id === editingRecord.id ? editingRecord : x)));
-    toast.success("Ficha clínica actualizada");
-    setRecordEditOpen(false);
-    setEditingRecord(null);
+    try {
+      await actualizarRegistro(Number(editingRecord.id), {
+        problemas: editingRecord.diagnosis as any,
+        tratamiento: editingRecord.treatment as any,
+        antecedentesPatalogico: editingRecord.observations as any,
+        Anamnesis: editingRecord.anamnesis as any,
+        observacionMes: editingRecord.observacionMes as any,
+      });
+      setRecords((prev) => prev.map((x) => (x.id === editingRecord.id ? editingRecord : x)));
+      toast.success("Ficha clínica actualizada");
+      setRecordEditOpen(false);
+      setEditingRecord(null);
+    } catch (err) {
+      toast.error("Error al guardar los cambios");
+    }
   };
 
   const historyStats = useMemo(() => {
@@ -382,8 +415,6 @@ export default function MedicalHistoryPage() {
   }, [records, clinicToday]);
 
   const indicatorCards = useMemo(() => {
-    const monthStart = monthStartIso(clinicToday);
-    const nextMonthStart = addMonthsMonthStart(monthStart, 1);
     return [
       {
         label: "Total Registros",
@@ -391,7 +422,6 @@ export default function MedicalHistoryPage() {
         icon: ClipboardList,
         color: "text-primary",
         bg: "bg-primary/10",
-        spark: cumulativeMedicalRecordsByDate(records),
       },
       {
         label: "Pacientes con historial",
@@ -399,7 +429,6 @@ export default function MedicalHistoryPage() {
         icon: Users,
         color: "text-success",
         bg: "bg-success/10",
-        spark: runningUniquePatientCount(records),
       },
       {
         label: "Diagnósticos únicos",
@@ -407,7 +436,6 @@ export default function MedicalHistoryPage() {
         icon: Stethoscope,
         color: "text-info",
         bg: "bg-info/10",
-        spark: runningUniqueDiagnosisCount(records),
       },
       {
         label: "Atenciones este mes",
@@ -415,10 +443,9 @@ export default function MedicalHistoryPage() {
         icon: FileText,
         color: "text-warning",
         bg: "bg-warning/10",
-        spark: cumulativeRecordsInMonthChronological(records, monthStart, nextMonthStart),
       },
     ];
-  }, [historyStats, records, clinicToday, totalHistorialCount, pacientesConCitaCount, diagnosticosUnicosCount, citasEsteMesCount, pacientesConHistorial]);
+  }, [totalHistorialCount, pacientesConCitaCount, diagnosticosUnicosCount, citasEsteMesCount]);
 
   
   const animatedTotalRecords = useCountUp(indicatorCards[0]?.value || 0, 800);
@@ -428,11 +455,11 @@ export default function MedicalHistoryPage() {
 
   
   const patientGroups = useMemo(() => {
-    const groups: Record<string, { patient: typeof patients[0] | undefined; records: MedicalRecord[] }> = {};
+    const groups: Record<string, { patient: any | undefined; records: MedicalRecord[] }> = {};
     records.forEach((r) => {
       if (!groups[r.patientId]) {
         groups[r.patientId] = {
-          patient: patients.find((p) => p.id === r.patientId),
+          patient: pacientesConHistorial.find((p: any) => p.id.toString() === r.patientId),
           records: [],
         };
       }
@@ -441,7 +468,7 @@ export default function MedicalHistoryPage() {
     
     Object.values(groups).forEach((g) => g.records.sort((a, b) => b.date.localeCompare(a.date)));
     return groups;
-  }, [records]);
+  }, [records, pacientesConHistorial]);
 
   
   const filteredRecordsCount = useMemo(() => {
@@ -465,26 +492,14 @@ export default function MedicalHistoryPage() {
   const expedientePatient = expedienteGroup?.patient;
 
   
-  const showExpedienteExample = detailPanel?.type === "expediente" && !expedientePatient;
-  
-  
-  const examplePatient = {
-    name: pacientesConHistorial.find((p: any) => p.id.toString() === detailPanel?.patientId)?.nombre || "Paciente Ejemplo",
-    dni: "12345678",
-    age: 35,
-    phone: "+51 987 654 321",
-    status: "activo"
-  };
-
-  
   const pacienteData = expedientePacienteAPI?.fields || {};
-  const pacienteNombre = pacienteData.nombreCompleto || examplePatient.name;
+  const pacienteNombre = pacienteData.nombreCompleto || "Paciente";
   const pacienteFoto = (Array.isArray(pacienteData.fotoPacientes) && pacienteData.fotoPacientes.length > 0) 
     ? (pacienteData.fotoPacientes[0].signedUrl || pacienteData.fotoPacientes[0].url) 
     : "";
-  const pacienteEdad = pacienteData.Edad || examplePatient.age;
-  const pacienteTelefono = pacienteData.telefono || examplePatient.phone;
-  const pacienteEstado = pacienteData.Estado || examplePatient.status;
+  const pacienteEdad = pacienteData.Edad || "";
+  const pacienteTelefono = pacienteData.telefono || "";
+  const pacienteEstado = pacienteData.Estado || "";
   const pacienteCitas = pacienteData.citas?.length || 0;
   
   
@@ -519,45 +534,6 @@ export default function MedicalHistoryPage() {
       image: imagenUrl
     };
   });
-  
-  const exampleRecords = [
-    {
-      id: 1,
-      date: "2026-04-25",
-      diagnosis: "Acumulación de queratina en talón",
-      treatment: "Profilaxis podal, Limpieza de los pies",
-      observations: "Paciente refiere dolor al caminar largas distancias"
-    },
-    {
-      id: 2,
-      date: "2026-03-15",
-      diagnosis: "Descamación interdigital",
-      treatment: "Antiséptico tópico 2 veces al día",
-      observations: "Paciente refiere picor nocturno"
-    },
-    {
-      id: 3,
-      date: "2026-02-10",
-      diagnosis: "Onicocriptosis (uña encarnada)",
-      treatment: "Onicotomia, Retiro de espicula",
-      observations: "Proceso de cicatrización favorable"
-    },
-    {
-      id: 4,
-      date: "2026-01-20",
-      diagnosis: "Hiperqueratosis plantar",
-      treatment: "Deslaminado, Masaje podal",
-      observations: "Mejora significativa después del tratamiento"
-    },
-    {
-      id: 5,
-      date: "2025-12-05",
-      diagnosis: "Dermatitis de contacto",
-      treatment: "Crema hidratante, Evitar irritantes",
-      observations: "Paciente presenta sensibilidad a ciertos materiales"
-    }
-  ];
-
   
   const [pageLoading, setPageLoading] = useState(true);
 
@@ -594,14 +570,14 @@ export default function MedicalHistoryPage() {
           <>
             <div 
               className="fixed inset-0 z-40 bg-black/50 animate-in fade-in duration-200" 
-              onClick={() => setNuevoHistorialOpen(false)}
+              onClick={() => { setNuevoHistorialOpen(false); setPreselectedPatientId(null); }}
             />
             <div className="fixed left-1/2 top-1/2 z-50 flex w-[calc(100vw-1.25rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-0 border border-border/70 bg-card text-card-foreground shadow-2xl ring-1 ring-black/[0.04] duration-200 rounded-xl sm:max-w-xl max-h-[min(92dvh,calc(100svh-1rem))] overflow-hidden animate-in zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] fade-in-0 animate-out zoom-out-95 slide-out-to-left-1/2 slide-out-to-top-[48%] fade-out-0">
             <div className="bg-[#22b4ad] relative">
               <button 
                 className="absolute top-3.5 right-3.5 w-7 h-7 rounded-full bg-white/20 border-0 text-white flex items-center justify-center hover:bg-white/30 transition-colors" 
                 type="button"
-                onClick={() => setNuevoHistorialOpen(false)}
+                onClick={() => { setNuevoHistorialOpen(false); setPreselectedPatientId(null); }}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -628,7 +604,10 @@ export default function MedicalHistoryPage() {
                         const value = e.target.value;
                         setCitaSeleccionadaTexto(value);
                         setShowCitasDropdown(true);
-                        const filtradas = citasDisponibles.filter((cita: any) => {
+                        const base = preselectedPatientId
+                          ? citasDisponibles.filter((c: any) => String(c.fields?.pacientes?.id) === preselectedPatientId)
+                          : citasDisponibles;
+                        const filtradas = base.filter((cita: any) => {
                           const searchTerm = value.toLowerCase();
                           const fecha = cita.fields?.fechaCitas || "";
                           const paciente = cita.fields?.pacientes?.fields?.nombreCompleto || "";
@@ -636,7 +615,13 @@ export default function MedicalHistoryPage() {
                         });
                         setCitasFiltradas(filtradas);
                       }}
-                      onFocus={() => setShowCitasDropdown(true)}
+                      onFocus={() => {
+                        setShowCitasDropdown(true);
+                        if (preselectedPatientId && citaSeleccionadaTexto === "") {
+                          const filtered = citasDisponibles.filter((c: any) => String(c.fields?.pacientes?.id) === preselectedPatientId);
+                          setCitasFiltradas(filtered);
+                        }
+                      }}
                     />
                     {showCitasDropdown && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -870,6 +855,17 @@ export default function MedicalHistoryPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
+                      <label className="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-[11px] text-gray-500 font-medium">Estado calendario</label>
+                      <Select value="registrado" onValueChange={() => {}}>
+                        <SelectTrigger className="w-full text-sm">
+                          <SelectValue placeholder="Registrado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="registrado">Registrado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
                       <label className="peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-[11px] text-gray-500 font-medium">Calificación</label>
                       <div className="flex gap-0.5 items-center">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -925,7 +921,7 @@ export default function MedicalHistoryPage() {
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => setNuevoHistorialOpen(false)}
+                onClick={() => { setNuevoHistorialOpen(false); setPreselectedPatientId(null); }}
               >
                 Cancelar
               </Button>
@@ -946,6 +942,8 @@ export default function MedicalHistoryPage() {
                         citaId: nuevoHistorial.citaId,
                       });
                       toast.success("Historial médico guardado");
+                      await loadRecords();
+                      await loadHistoryStats();
                       setNuevoHistorialOpen(false);
                       setNuevoHistorial({
                         problemas: "",
@@ -1047,12 +1045,6 @@ export default function MedicalHistoryPage() {
                       <p className="text-xs text-muted-foreground">{m.label}</p>
                     </div>
                   </div>
-                  <SparklineAreaAnimated
-                    values={m.spark}
-                    delayMs={i * 85}
-                    colorClassName={m.color}
-                    className="self-center"
-                  />
                 </CardContent>
               </Card>
             ))}
@@ -1375,7 +1367,7 @@ export default function MedicalHistoryPage() {
                     <p className="text-xs">Consultas totales</p>
                   </div>
                   <div className="min-w-[100px] flex-1 rounded-xl p-4 text-center" style={{ backgroundColor: '#178a84', color: 'white' }}>
-                    <p className="text-2xl font-bold">{new Set((expedienteRecords || exampleRecords).map((r) => r.diagnosis)).size}</p>
+                    <p className="text-2xl font-bold">{new Set(expedienteRecords.map((r) => r.diagnosis)).size}</p>
                     <p className="text-xs">Diagnósticos</p>
                   </div>
                   <div className="min-w-[100px] flex-1 rounded-xl p-4 text-center bg-muted">
@@ -1411,16 +1403,9 @@ export default function MedicalHistoryPage() {
                           className="gap-2"
                           style={{ backgroundColor: '#22b4ad', color: 'white' }}
                           onClick={() => {
-                            const newRecord: MedicalRecord = {
-                              id: "0",
-                              patientId: detailPanel?.patientId || "",
-                              patientName: pacienteNombre,
-                              date: new Date().toISOString().split('T')[0],
-                              diagnosis: "",
-                              treatment: "",
-                              observations: ""
-                            };
-                            openRecordEdit(newRecord);
+                            setPreselectedPatientId(detailPanel?.patientId || null);
+                            setActiveTab("historial");
+                            setNuevoHistorialOpen(true);
                           }}
                         >
                           <Plus className="h-4 w-4" />
@@ -1566,8 +1551,8 @@ export default function MedicalHistoryPage() {
                 <Textarea 
                   className="flex rounded-md border border-input bg-background px-3 py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full text-sm min-h-[80px]" 
                   placeholder="Historia clínica del paciente..."
-                  value={editingRecord?.observations || ""}
-                  onChange={(e) => setEditingRecord((x) => x ? {...x, observations: e.target.value} : x)}
+                  value={editingRecord?.anamnesis || ""}
+                  onChange={(e) => setEditingRecord((x) => x ? {...x, anamnesis: e.target.value} : x)}
                 />
               </div>
               <div className="space-y-2">
@@ -1602,8 +1587,8 @@ export default function MedicalHistoryPage() {
                 <Textarea 
                   className="flex rounded-md border border-input bg-background px-3 py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full text-sm min-h-[80px]" 
                   placeholder="Observaciones del mes actual..."
-                  value={editingRecord?.observations || ""}
-                  onChange={(e) => setEditingRecord((x) => x ? {...x, observations: e.target.value} : x)}
+                  value={editingRecord?.observacionMes || ""}
+                  onChange={(e) => setEditingRecord((x) => x ? {...x, observacionMes: e.target.value} : x)}
                 />
               </div>
             </div>
