@@ -5,83 +5,31 @@ const TOKEN = import.meta.env.VITE_NOCODB_TOKEN;
 export const PROJECT_ID = import.meta.env.VITE_NOCODB_PROJECT_ID || "p96bi1rx1mkbyoa";
 import { requireAuthToken } from "@/lib/auth";
 
-const MIN_REQUEST_INTERVAL_MS = 100; 
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 1000;
-
-
-class RequestQueue {
-  private queue: (() => Promise<void>)[] = [];
-  private running = false;
-  private lastRequestTime = 0;
-
-  async enqueue<T>(fn: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      this.queue.push(async () => {
-        try {
-          const result = await fn();
-          resolve(result);
-        } catch (err) {
-          reject(err);
-        }
-      });
-      this.process();
-    });
-  }
-
-  private async process() {
-    if (this.running || this.queue.length === 0) return;
-    this.running = true;
-
-    while (this.queue.length > 0) {
-      const now = Date.now();
-      const elapsed = now - this.lastRequestTime;
-      if (elapsed < MIN_REQUEST_INTERVAL_MS) {
-        await this.sleep(MIN_REQUEST_INTERVAL_MS - elapsed);
-      }
-
-      const task = this.queue.shift();
-      if (task) {
-        this.lastRequestTime = Date.now();
-        await task();
-      }
-    }
-
-    this.running = false;
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-}
-
-const requestQueue = new RequestQueue();
-
 
 export async function fetchWithThrottle(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
   requireAuthToken();
-  return requestQueue.enqueue(async () => {
-    let attempt = 0;
+  let attempt = 0;
 
-    while (true) {
-      const response = await fetch(input, init);
+  while (true) {
+    const response = await fetch(input, init);
 
-      if (response.status === 429) {
-        if (attempt >= MAX_RETRIES) {
-          throw new Error("Demasiadas solicitudes. Espere un momento y reintente.");
-        }
-        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
-        await new Promise((r) => setTimeout(r, delay));
-        attempt++;
-        continue;
+    if (response.status === 429) {
+      if (attempt >= MAX_RETRIES) {
+        throw new Error("Demasiadas solicitudes. Espere un momento y reintente.");
       }
-
-      return response;
+      const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
+      await new Promise((r) => setTimeout(r, delay));
+      attempt++;
+      continue;
     }
-  });
+
+    return response;
+  }
 }
 
 
