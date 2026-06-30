@@ -198,11 +198,12 @@ export async function deleteRecord(
   tableId: string,
   id: number
 ): Promise<void> {
-  const url = `${getBaseUrl(tableId)}/${id}`;
+  const url = getBaseUrl(tableId);
 
   const response = await fetchWithThrottle(url, {
     method: "DELETE",
     headers: getHeaders(),
+    body: JSON.stringify({ id }),
   });
 
   if (!response.ok) handleError(response);

@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -38,6 +38,16 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
         <p className="text-muted-foreground text-sm mt-1">Servicio a domicilio: datos del negocio, franjas y preferencias</p>
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium text-amber-900">Funcionalidades en construcción</p>
+          <p className="text-sm text-amber-800 mt-1">
+            Esta sección aún está en desarrollo. Algunas opciones de configuración no están disponibles en este momento.
+          </p>
+        </div>
       </div>
 
       <Tabs defaultValue="business">

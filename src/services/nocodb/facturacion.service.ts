@@ -153,10 +153,11 @@ export async function actualizarFacturacion(id: string, fields: any, oldPatientI
 
 
 export async function eliminarFacturacion(id: number) {
-  const url = `${import.meta.env.VITE_NOCODB_URL}/api/v3/data/${import.meta.env.VITE_NOCODB_PROJECT_ID}/${TABLE_FACTURACION}/records/${id}`;
+  const url = `${import.meta.env.VITE_NOCODB_URL}/api/v3/data/${import.meta.env.VITE_NOCODB_PROJECT_ID}/${TABLE_FACTURACION}/records`;
   const response = await fetchWithThrottle(url, {
     method: "DELETE",
     headers: getHeaders(),
+    body: JSON.stringify({ id }),
   });
 
   if (!response.ok) {

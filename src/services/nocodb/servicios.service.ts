@@ -101,12 +101,14 @@ export async function actualizarServicio(id: string, data: {
 
 export async function eliminarServicio(id: string) {
   const response = await fetchWithThrottle(
-    `${import.meta.env.VITE_NOCODB_URL}/api/v3/data/${import.meta.env.VITE_NOCODB_PROJECT_ID}/${TABLE_SERVICIOS}/records/${id}`,
+    `${import.meta.env.VITE_NOCODB_URL}/api/v3/data/${import.meta.env.VITE_NOCODB_PROJECT_ID}/${TABLE_SERVICIOS}/records`,
     {
       method: 'DELETE',
       headers: {
-        'xc-token': import.meta.env.VITE_NOCODB_TOKEN
-      }
+        'xc-token': import.meta.env.VITE_NOCODB_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ id })
     }
   );
   if (!response.ok) {
