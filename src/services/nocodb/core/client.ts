@@ -5,9 +5,9 @@ const TOKEN = import.meta.env.VITE_NOCODB_TOKEN;
 export const PROJECT_ID = import.meta.env.VITE_NOCODB_PROJECT_ID || "p96bi1rx1mkbyoa";
 import { requireAuthToken } from "@/lib/auth";
 
-const MAX_RETRIES = 3;
-const BASE_RETRY_DELAY_MS = 1000;
-const MIN_REQUEST_INTERVAL_MS = 100;
+const MAX_RETRIES = 5;
+const BASE_RETRY_DELAY_MS = 2000;
+const MIN_REQUEST_INTERVAL_MS = 350;
 let lastRequestTime = 0;
 
 export async function fetchWithThrottle(

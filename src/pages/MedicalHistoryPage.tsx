@@ -200,6 +200,7 @@ export default function MedicalHistoryPage() {
             
             const citasSinHistorial: any[] = [];
             for (const cita of data.records || []) {
+              await new Promise((r) => setTimeout(r, 250));
               try {
                 const historial = await historialPorCita(cita.id);
                 if (!historial.records || historial.records.length === 0) {
@@ -308,6 +309,7 @@ export default function MedicalHistoryPage() {
             const fechaCita = fechaCitasCompleta.split(' - ')[0] || "—";
             const horaCita = fechaCitasCompleta.split(' - ')[1] || "";
             const fechaHoraCita = horaCita ? `${fechaCita} ${horaCita}` : fechaCita;
+            await new Promise((r) => setTimeout(r, 200));
             try {
               const historial = await historialPorCita(citaId);
               if (historial.records && historial.records.length > 0) {
