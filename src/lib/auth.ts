@@ -21,7 +21,7 @@ export const isValidJWT = (token: string | null): boolean => {
 export const requireAuthToken = () => {
   const token = localStorage.getItem("token");
   if (!isValidJWT(token)) {
-    console.error("[Auth] Token inválido o ausente. Token en localStorage:", token);
-    console.warn("[Auth] Redirigir a:", LOGIN_URL, "(desactivado temporalmente para depuración)");
+    localStorage.removeItem("token");
+    window.location.href = LOGIN_URL;
   }
 };
